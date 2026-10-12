@@ -1,0 +1,879 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>탄력근로 보상시간 계산기 v1.3.0</title>
+<style>
+  :root {
+    --bg: #FFF9EF;
+    --card: #FFFDF6;
+    --border: #EADFC8;
+    --primary: #F59E0B;
+    --primary-dark: #D97706;
+    --text: #3B3325;
+    --muted: #8A7E66;
+    --red: #DC2626;
+    --week-head: #FBF3E0;
+    --input-bg: #F7F1E3;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 24px;
+    background: var(--bg); color: var(--text);
+    font-family: "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+    font-size: 14px;
+  }
+  h1 { font-size: 26px; display: flex; align-items: center; gap: 10px; margin: 8px 0 24px; }
+  h1 .clock { color: var(--primary); }
+  h2 { font-size: 18px; margin: 0 0 4px; }
+  .desc { color: var(--muted); font-size: 13px; margin-bottom: 16px; }
+  .card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 12px; padding: 20px 24px; margin-bottom: 24px;
+    max-width: 1100px;
+  }
+  label.fld { display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; font-weight: bold; }
+  .row { display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-end; }
+  select, input[type="date"], input[type="time"], input[type="text"], input[type="number"] {
+    background: var(--input-bg); border: 1px solid var(--border); border-radius: 8px;
+    padding: 8px 10px; font-size: 14px; color: var(--text); font-family: inherit;
+  }
+  button {
+    border: none; border-radius: 8px; padding: 10px 22px; font-size: 14px;
+    cursor: pointer; font-family: inherit; font-weight: bold;
+  }
+  .btn-primary { background: var(--primary); color: #fff; }
+  .btn-primary:hover { background: var(--primary-dark); }
+  .btn-ghost { background: var(--card); border: 1px solid var(--border); color: var(--text); }
+  .btn-ghost:hover { background: var(--input-bg); }
+  table { border-collapse: collapse; width: 100%; }
+  th, td { padding: 8px 6px; text-align: center; }
+  thead th {
+    font-size: 12px; color: var(--muted);
+    position: sticky; top: 0; z-index: 5;
+    background: var(--card);
+    box-shadow: 0 1px 0 var(--border);
+  }
+  tbody tr.day-row { border-bottom: 1px solid #F3EAD5; }
+  tr.week-head td {
+    background: var(--week-head); font-weight: bold; padding: 10px;
+    border-top: 2px solid var(--border);
+  }
+  tr.week-summary td { background: var(--week-head); padding: 10px; }
+  .sunday { color: var(--red); }
+  .holiday-bg { background: #FFF3F0; }
+  .calc-cell { font-variant-numeric: tabular-nums; }
+  .manual-input { width: 72px; text-align: center; }
+  .manual-input.edited { border-color: var(--primary); background: #FFF1DC; }
+  .reset-manual {
+    border: none; background: none; cursor: pointer; color: var(--primary-dark);
+    font-size: 14px; padding: 0 2px; display: none; vertical-align: middle;
+  }
+  .reset-manual.show { display: inline; }
+  .time-input { width: 110px; }
+  .prepaid-input { width: 80px; text-align: center; font-weight: bold; }
+  .actions { display: flex; gap: 10px; margin-top: 16px; }
+  .badge {
+    display: inline-block; background: #FDE4C8; color: #B45309;
+    border-radius: 6px; font-size: 10px; padding: 1px 6px; margin-left: 4px;
+    vertical-align: middle; white-space: nowrap;
+  }
+  .next-day {
+    display: inline-block; background: #E0ECFF; color: #1D4ED8;
+    border-radius: 6px; font-size: 10px; padding: 1px 6px; margin-left: 4px;
+    vertical-align: middle;
+  }
+  .wk-total { font-variant-numeric: tabular-nums; }
+  .wk-total.over52 { color: var(--primary-dark); }
+  .wk-total.over64 { color: var(--red); }
+  #parseReport {
+    margin-top: 14px; font-size: 13px; line-height: 1.7;
+    background: var(--week-head); border: 1px solid var(--border);
+    border-radius: 8px; padding: 10px 14px; display: none;
+  }
+  #parseReport .fail { color: var(--red); }
+  /* 토스트 */
+  #toasts { position: fixed; top: 16px; right: 16px; z-index: 100; display: flex; flex-direction: column; gap: 8px; }
+  .toast {
+    background: #3B3325; color: #fff; padding: 10px 16px; border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,.25); font-size: 13px; max-width: 340px;
+    opacity: 0; transition: opacity .3s;
+  }
+  .toast.show { opacity: 1; }
+  .toast.error { background: var(--red); }
+  .toast.success { background: #15803D; }
+  /* 결과 */
+  #results table th, #results table td { border-bottom: 1px solid #F3EAD5; font-variant-numeric: tabular-nums; }
+  #results .desc { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+  tr.excluded td { color: var(--muted); background: #FAF6EC; font-style: italic; }
+  .cards { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 18px; }
+  .stat {
+    flex: 1; min-width: 180px; background: var(--week-head);
+    border: 1px solid var(--border); border-radius: 10px; padding: 14px;
+  }
+  .stat .label { font-size: 12px; color: var(--muted); }
+  .stat .value { font-size: 22px; font-weight: bold; margin-top: 6px; }
+  .stat.net .value { color: var(--primary-dark); }
+  .warn { color: var(--red); font-weight: bold; }
+  .footnote { color: var(--muted); font-size: 12px; margin-top: 14px; line-height: 1.6; }
+  .neg { color: var(--red); }
+</style>
+</head>
+<body>
+
+<div id="toasts"></div>
+
+<h1><span class="clock">&#128336;</span> 탄력근로 보상시간 계산기 <span style="font-size:15px;color:var(--muted)">v1.3.0</span></h1>
+
+<div class="card">
+  <h2>1. 근무 기간 설정</h2>
+  <div class="desc">텍스트 파일을 선택하면 기간을 자동 인식해 스케줄 생성까지 한 번에 처리합니다. 수동으로 기간을 설정할 수도 있습니다.</div>
+  <div class="row">
+    <div>
+      <label class="fld">텍스트 파일로 입력 (자동 생성)</label>
+      <button class="btn-primary" id="btnTxt">&#128228; 파일 선택</button>
+      <input type="file" id="txtFile" accept=".txt" style="display:none">
+    </div>
+    <div style="border-left:1px solid var(--border); padding-left:16px">
+      <label class="fld">탄력 근무 기간</label>
+      <select id="periodWeeks"></select>
+    </div>
+    <div>
+      <label class="fld">시작 날짜</label>
+      <input type="date" id="startDate">
+    </div>
+    <div>
+      <button class="btn-ghost" id="btnGenerate">스케줄 생성</button>
+    </div>
+  </div>
+  <div id="parseReport"></div>
+</div>
+
+<div class="card" id="scheduleCard" style="display:none">
+  <h2>2. 근무 시간 입력 및 결과 확인</h2>
+  <div class="desc">각 요일의 근무 시작/종료 시간을 입력하세요. 인정 근무시간/야간근로는 자동 계산되며 직접 수정할 수 있습니다(수정한 칸은 주황색으로 표시되고 ↺로 자동값 복원). 자정을 넘긴 퇴근은 익일 시각으로 입력하면 +1일로 표시됩니다.</div>
+  <table id="scheduleTable">
+    <thead>
+      <tr>
+        <th>날짜</th><th>공휴일</th><th>요일</th>
+        <th>시작 시간</th><th>종료 시간</th>
+        <th>총 근무시간</th><th>야간근로</th>
+        <th>인정 근무시간</th><th>인정 야간근로</th>
+      </tr>
+    </thead>
+    <tbody id="scheduleBody"></tbody>
+  </table>
+  <div class="actions">
+    <button class="btn-primary" id="btnCalc">결과 계산하기</button>
+    <button class="btn-ghost" id="btnSave">&#128190; 파일로 저장</button>
+    <button class="btn-ghost" id="btnLoad">&#128194; 파일에서 불러오기</button>
+    <input type="file" id="jsonFile" accept=".txt,.json" style="display:none">
+  </div>
+</div>
+
+<div class="card" id="results" style="display:none">
+  <h2>3. 계산 결과</h2>
+  <div class="desc">
+    <span>주별 보상시간에서 선지급(포괄) 보상시간을 차감한 순 보상시간입니다. 가산율: 평일연장 1.5 / 휴일 1.5 / 휴일 8시간 초과 2.0 / 야간(22:00~06:00) +0.5</span>
+    <label style="white-space:nowrap"><input type="checkbox" id="fmtToggle"> 소수점(h)으로 표시</label>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>주차</th><th>총 인정근로</th><th>평일 정규</th><th>평일 연장</th>
+        <th>휴일(8h 이내)</th><th>휴일 초과</th><th>야간 합계</th>
+        <th>보상시간</th><th>선지급 차감</th><th>순 보상시간</th>
+      </tr>
+    </thead>
+    <tbody id="resultBody"></tbody>
+  </table>
+  <div class="cards">
+    <div class="stat"><div class="label">총 보상시간</div><div class="value" id="statComp">-</div></div>
+    <div class="stat"><div class="label">선지급 보상 차감 합계</div><div class="value" id="statPrepaid">-</div></div>
+    <div class="stat net"><div class="label">순 보상시간 합계</div><div class="value" id="statNet">-</div></div>
+    <div class="stat net"><div class="label">조정 휴가시간</div><div class="value" id="statVacation">-</div></div>
+  </div>
+  <div class="footnote">
+    · 인정 근무시간 규칙: 평일 시작 09:00 이전은 09:00으로, 종료 18:00 이전은 18:00으로 보정 · 종료 상한 익일 06:30<br>
+    · 휴게 차감: 14:00 이후 종료 시 1시간, 21:00 이후 종료 시 30분 추가, 익일 06:30 도달 시 1시간 추가(야간에서 차감)<br>
+    · 10분 단위 반올림(끝자리 8·9분은 올림, 그 외 버림) · 토요일은 평일(연장)로, 일요일·공휴일·지정휴일은 휴일로 처리<br>
+    · 근무 기록이 전혀 없는 주차는 자동으로 계산에서 제외됩니다 · <span class="warn">⚠</span> 표시는 주 64시간(탄력근로 한도 52h + 연장 12h) 초과 주입니다.
+  </div>
+</div>
+
+<script>
+'use strict';
+
+/* ===================== 상태 ===================== */
+const state = {
+  weeks: 4,
+  startDate: null,   // 'YYYY-MM-DD'
+  schedule: [],      // [week][day] = {date, start, end, manualWorked, manualNight, designated, editedWorked, editedNight}
+  prepaid: [],       // [week] = {regular: 40, overtime: 12}
+  sourceName: null   // 업로드한 근무일 파일명 (저장 파일명 생성에 사용)
+};
+let lastResults = null;          // 마지막 계산 결과 (포맷 토글 재렌더용)
+let resultFmtDecimal = false;    // false: HH:MM, true: 소수점 h
+
+const DOW_KO = ['일','월','화','수','목','금','토'];
+const NIGHT_START_MIN = 22 * 60;          // 22:00
+const NIGHT_END_MIN   = 24 * 60 + 6 * 60; // 익일 06:00 (법정 야간 종료)
+const MAX_END_MIN     = 24 * 60 + 6 * 60 + 30; // 익일 06:30 인정 상한
+const MIN_WEEKS = 2, MAX_WEEKS = 13;
+
+/* ===================== 공휴일 (이름 포함) ===================== */
+const RECURRING_HOLIDAYS = { // '월-일': 이름
+  '1-1': '신정', '3-1': '삼일절', '5-1': '근로자의날', '5-5': '어린이날',
+  '6-6': '현충일', '8-15': '광복절', '10-3': '개천절', '10-9': '한글날', '12-25': '성탄절'
+};
+const SPECIFIC_HOLIDAYS = { // '년-월-일': 이름 (설·추석·대체공휴일 등)
+  '2024-2-9': '설날연휴', '2024-2-10': '설날', '2024-2-11': '설날연휴', '2024-2-12': '대체공휴일',
+  '2024-4-10': '국회의원선거', '2024-5-6': '대체공휴일', '2024-5-15': '부처님오신날',
+  '2024-9-16': '추석연휴', '2024-9-17': '추석', '2024-9-18': '추석연휴',
+  '2025-1-27': '임시공휴일', '2025-1-28': '설날연휴', '2025-1-29': '설날', '2025-1-30': '설날연휴',
+  '2025-3-3': '대체공휴일', '2025-5-6': '대체공휴일', '2025-6-3': '대통령선거',
+  '2025-10-6': '추석', '2025-10-7': '추석연휴', '2025-10-8': '대체공휴일',
+  '2026-2-16': '설날연휴', '2026-2-17': '설날', '2026-2-18': '설날연휴',
+  '2026-3-2': '대체공휴일', '2026-5-24': '부처님오신날', '2026-5-25': '대체공휴일',
+  '2026-6-3': '지방선거', '2026-8-17': '대체공휴일',
+  '2026-9-24': '추석연휴', '2026-9-25': '추석', '2026-9-26': '추석연휴',
+  '2026-9-28': '대체공휴일', '2026-10-5': '대체공휴일'
+};
+
+function holidayName(dateStr) {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return RECURRING_HOLIDAYS[m + '-' + d] || SPECIFIC_HOLIDAYS[y + '-' + m + '-' + d] || null;
+}
+function isPublicHoliday(dateStr) { return holidayName(dateStr) !== null; }
+
+/* ===================== 토스트 ===================== */
+function toast(msg, type) {
+  const box = document.getElementById('toasts');
+  const el = document.createElement('div');
+  el.className = 'toast' + (type ? ' ' + type : '');
+  el.textContent = msg;
+  box.appendChild(el);
+  requestAnimationFrame(() => el.classList.add('show'));
+  setTimeout(() => {
+    el.classList.remove('show');
+    setTimeout(() => el.remove(), 400);
+  }, 4000);
+}
+
+/* ===================== 유틸 ===================== */
+function parseHHMM(str) { // 'H:MM' or 'HH:MM' → 분, 실패 시 null
+  if (!str) return null;
+  const m = /^(\d{1,2}):(\d{2})$/.exec(str.trim());
+  if (!m) return null;
+  return Number(m[1]) * 60 + Number(m[2]);
+}
+function fmtHM(minutes) { // 분 → 'HH:MM'
+  const sign = minutes < 0 ? '-' : '';
+  const abs = Math.abs(Math.round(minutes));
+  return sign + String(Math.floor(abs / 60)).padStart(2, '0') + ':' + String(abs % 60).padStart(2, '0');
+}
+function fmtResult(minutes) { // 결과 표시: HH:MM 또는 소수점 h
+  return resultFmtDecimal ? (minutes / 60).toFixed(2) + ' h' : fmtHM(minutes);
+}
+function dateToStr(d) {
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+function addDaysStr(dateStr, n) {
+  const d = new Date(dateStr + 'T00:00:00');
+  d.setDate(d.getDate() + n);
+  return dateToStr(d);
+}
+function dayOfWeek(dateStr) { return new Date(dateStr + 'T00:00:00').getDay(); }
+function roundTo10(minutes) { // 끝자리 8·9분 올림, 그 외 버림
+  const last = minutes % 10;
+  if (last === 8 || last === 9) return Math.ceil(minutes / 10) * 10;
+  return Math.floor(minutes / 10) * 10;
+}
+function overlap(aStart, aEnd, bStart, bEnd) {
+  const s = Math.max(aStart, bStart), e = Math.min(aEnd, bEnd);
+  return e > s ? e - s : 0;
+}
+
+/* ===================== 일별 계산 ===================== */
+function calcDaily(day) {
+  let s = parseHHMM(day.start), e = parseHHMM(day.end);
+  if (s === null || e === null) return { worked: 0, night: 0 };
+
+  if (e <= s) e += 24 * 60;            // 자정 넘김
+  if (e > MAX_END_MIN) e = MAX_END_MIN; // 인정 상한 익일 06:30
+  const capped = (e === MAX_END_MIN);
+
+  const dow = dayOfWeek(day.date);
+  const isHol = isPublicHoliday(day.date) || day.designated;
+  const isRegularWorkday = dow >= 1 && dow <= 5 && !isHol;
+
+  if (isRegularWorkday) {
+    if (s < 9 * 60) s = 9 * 60;        // 시작 09:00 보정
+    if (e < 18 * 60) e = 18 * 60;      // 종료 최소 18:00 보정
+  }
+  if (s >= e) return { worked: 0, night: 0 };
+
+  const gross = e - s;
+  let grossNight = overlap(s, e, NIGHT_START_MIN, NIGHT_END_MIN)
+                 + overlap(s, e, NIGHT_START_MIN + 24 * 60, NIGHT_END_MIN + 24 * 60);
+
+  let breakMin = 0, nightBreak = 0;
+  if (e > 14 * 60) breakMin += 60;     // 점심
+  if (e > 21 * 60) breakMin += 30;     // 저녁
+  if (capped) { breakMin += 60; nightBreak += 60; } // 심야 휴게
+
+  const worked = Math.max(0, gross - breakMin);
+  const night  = Math.max(0, grossNight - nightBreak);
+  return { worked: roundTo10(worked), night: roundTo10(night) };
+}
+
+/* ===================== 주별/전체 계산 ===================== */
+function performCalculations() {
+  const weekly = [];
+  const overall = {
+    comp: 0, prepaidComp: 0, net: 0,
+    regular: 0, overtime: 0, holReg: 0, holOT: 0, night: 0, total: 0
+  };
+
+  state.schedule.forEach((week, wi) => {
+    let workday = 0, holReg = 0, holOT = 0, wkdayNight = 0, holNight = 0, total = 0;
+
+    week.forEach(day => {
+      const worked = parseHHMM(day.manualWorked) || 0;
+      const night  = parseHHMM(day.manualNight) || 0;
+      const dow = dayOfWeek(day.date);
+      const isHol = isPublicHoliday(day.date) || dow === 0 || day.designated;
+      total += worked;
+      if (isHol) {
+        holReg += Math.min(worked, 8 * 60);
+        holOT  += Math.max(0, worked - 8 * 60);
+        holNight += night;
+      } else {
+        workday += worked;
+        wkdayNight += night;
+      }
+    });
+
+    // 근무 기록이 전혀 없는 주차는 계산 제외
+    if (total === 0) {
+      weekly.push({ week: wi + 1, excluded: true });
+      return;
+    }
+
+    const pre = state.prepaid[wi] || { regular: 40, overtime: 12 };
+    const preRegMin = pre.regular * 60, preOTMin = pre.overtime * 60;
+
+    const ot  = Math.max(0, workday - preRegMin);
+    const reg = workday - ot;
+    const night = wkdayNight + holNight;
+
+    const comp = reg * 1.0 + ot * 1.5 + holReg * 1.5 + holOT * 2.0 + night * 0.5;
+    const prepaidComp = preRegMin * 1.0 + preOTMin * 1.5;
+    const net = comp - prepaidComp;
+
+    weekly.push({ week: wi + 1, excluded: false, total, reg, ot, holReg, holOT, night, comp, prepaidComp, net });
+
+    overall.comp += comp; overall.prepaidComp += prepaidComp; overall.net += net;
+    overall.regular += reg; overall.overtime += ot; overall.holReg += holReg;
+    overall.holOT += holOT; overall.night += night; overall.total += total;
+  });
+
+  overall.vacation = Math.max(0, overall.net);
+  return { weekly, overall };
+}
+
+/* ===================== 스케줄 생성/렌더링 ===================== */
+function hasAnyInput() {
+  return state.schedule.some(week => week.some(d =>
+    d.start || d.end || (d.manualWorked !== '00:00') || (d.manualNight !== '00:00') || d.designated));
+}
+
+function buildSchedule(weeks, startDate) {
+  state.weeks = weeks;
+  state.startDate = startDate;
+  state.schedule = [];
+  state.prepaid = [];
+  for (let w = 0; w < weeks; w++) {
+    const week = [];
+    for (let d = 0; d < 7; d++) {
+      const date = addDaysStr(startDate, w * 7 + d);
+      week.push({
+        date, start: '', end: '', manualWorked: '00:00', manualNight: '00:00',
+        designated: false, editedWorked: false, editedNight: false
+      });
+    }
+    state.schedule.push(week);
+    state.prepaid.push({ regular: 40, overtime: 12 });
+  }
+  document.getElementById('periodWeeks').value = weeks;
+  document.getElementById('startDate').value = startDate;
+}
+
+function generateSchedule() {
+  const startDate = document.getElementById('startDate').value;
+  if (!startDate) { toast('시작 날짜를 선택하세요.', 'error'); return; }
+  if (state.schedule.length && hasAnyInput()
+      && !confirm('스케줄을 새로 생성하면 입력한 근무 시간이 모두 삭제됩니다.\n계속할까요?')) return;
+
+  buildSchedule(Number(document.getElementById('periodWeeks').value), startDate);
+  renderSchedule();
+  document.getElementById('results').style.display = 'none';
+  document.getElementById('parseReport').style.display = 'none';
+}
+
+function renderSchedule() {
+  const body = document.getElementById('scheduleBody');
+  body.innerHTML = '';
+
+  state.schedule.forEach((week, wi) => {
+    const head = document.createElement('tr');
+    head.className = 'week-head';
+    head.innerHTML = '<td colspan="9">' + (wi + 1) + '주차</td>';
+    body.appendChild(head);
+
+    week.forEach((day, di) => {
+      const dow = dayOfWeek(day.date);
+      const holName = holidayName(day.date);
+      const isHol = !!holName || day.designated;
+      const tr = document.createElement('tr');
+      tr.className = 'day-row' + (isHol ? ' holiday-bg' : '');
+      tr.dataset.w = wi; tr.dataset.d = di;
+      const dateLabel = day.date.slice(5).replace('-', '/');
+      const sunCls = (dow === 0 || isHol) ? ' class="sunday"' : '';
+      tr.innerHTML =
+        '<td' + sunCls + '>' + dateLabel + (holName ? '<span class="badge">' + holName + '</span>' : '') + '</td>' +
+        '<td><input type="checkbox" data-w="' + wi + '" data-d="' + di + '" class="chk-designated"' + (day.designated ? ' checked' : '') + '></td>' +
+        '<td' + sunCls + '>' + DOW_KO[dow] + '</td>' +
+        '<td><input type="time" class="time-input inp-start" data-w="' + wi + '" data-d="' + di + '" value="' + day.start + '"></td>' +
+        '<td><input type="time" class="time-input inp-end" data-w="' + wi + '" data-d="' + di + '" value="' + day.end + '"></td>' +
+        '<td class="calc-cell cell-worked">00:00</td>' +
+        '<td class="calc-cell cell-night">00:00</td>' +
+        '<td><input type="text" class="manual-input inp-mworked' + (day.editedWorked ? ' edited' : '') + '" data-w="' + wi + '" data-d="' + di + '" value="' + day.manualWorked + '">' +
+        '<button class="reset-manual rst-worked' + (day.editedWorked ? ' show' : '') + '" data-w="' + wi + '" data-d="' + di + '" title="자동값으로 되돌리기">&#8634;</button></td>' +
+        '<td><input type="text" class="manual-input inp-mnight' + (day.editedNight ? ' edited' : '') + '" data-w="' + wi + '" data-d="' + di + '" value="' + day.manualNight + '">' +
+        '<button class="reset-manual rst-night' + (day.editedNight ? ' show' : '') + '" data-w="' + wi + '" data-d="' + di + '" title="자동값으로 되돌리기">&#8634;</button></td>';
+      body.appendChild(tr);
+      updateDayRow(tr, day, false);
+    });
+
+    const sum = document.createElement('tr');
+    sum.className = 'week-summary';
+    sum.dataset.w = wi;
+    sum.innerHTML =
+      '<td colspan="3" style="text-align:right">포괄 정규 시간(h)&nbsp;' +
+      '<input type="number" class="prepaid-input pre-reg" data-w="' + wi + '" value="' + state.prepaid[wi].regular + '" min="0" step="1"></td>' +
+      '<td colspan="3" style="text-align:left">포괄 연장 시간(h)&nbsp;' +
+      '<input type="number" class="prepaid-input pre-ot" data-w="' + wi + '" value="' + state.prepaid[wi].overtime + '" min="0" step="1"></td>' +
+      '<td colspan="3" style="text-align:right">주간 인정근로 합계&nbsp;<b class="wk-total">00:00</b></td>';
+    body.appendChild(sum);
+    updateWeekSummary(wi);
+  });
+
+  document.getElementById('scheduleCard').style.display = '';
+  bindScheduleEvents();
+}
+
+// 주간 인정근로 실시간 합계 (52h 초과 주황 / 64h 초과 빨강+⚠)
+function updateWeekSummary(wi) {
+  const el = document.querySelector('tr.week-summary[data-w="' + wi + '"] .wk-total');
+  if (!el) return;
+  const total = state.schedule[wi].reduce((acc, d) => acc + (parseHHMM(d.manualWorked) || 0), 0);
+  let txt = fmtHM(total);
+  el.classList.remove('over52', 'over64');
+  if (total > 64 * 60) { el.classList.add('over64'); txt += ' ⚠ 64h 초과'; }
+  else if (total > 52 * 60) { el.classList.add('over52'); txt += ' · 52h 초과'; }
+  el.textContent = txt;
+}
+
+// 시작/종료 변경 시 자동계산값 표시. 인정칸은 수동 수정되지 않은 경우만 덮어씀.
+function updateDayRow(tr, day, fillManual) {
+  const { worked, night } = calcDaily(day);
+  tr.querySelector('.cell-worked').textContent = fmtHM(worked);
+  tr.querySelector('.cell-night').textContent = fmtHM(night);
+  if (fillManual) {
+    let preserved = false;
+    if (day.editedWorked) { preserved = true; }
+    else {
+      day.manualWorked = fmtHM(worked);
+      tr.querySelector('.inp-mworked').value = day.manualWorked;
+    }
+    if (day.editedNight) { preserved = true; }
+    else {
+      day.manualNight = fmtHM(night);
+      tr.querySelector('.inp-mnight').value = day.manualNight;
+    }
+    if (preserved) toast('수동 수정된 인정값은 유지했습니다. ↺ 버튼으로 자동값을 복원할 수 있습니다.');
+  }
+  // +1일 배지
+  const endCell = tr.querySelector('.inp-end').parentElement;
+  let badge = endCell.querySelector('.next-day');
+  const s = parseHHMM(day.start), e = parseHHMM(day.end);
+  const overnight = s !== null && e !== null && e <= s;
+  if (overnight && !badge) {
+    badge = document.createElement('span');
+    badge.className = 'next-day';
+    badge.textContent = '+1일';
+    endCell.appendChild(badge);
+  } else if (!overnight && badge) {
+    badge.remove();
+  }
+}
+
+function setEdited(tr, day, which, edited) { // which: 'worked' | 'night'
+  const inp = tr.querySelector(which === 'worked' ? '.inp-mworked' : '.inp-mnight');
+  const btn = tr.querySelector(which === 'worked' ? '.rst-worked' : '.rst-night');
+  day[which === 'worked' ? 'editedWorked' : 'editedNight'] = edited;
+  inp.classList.toggle('edited', edited);
+  btn.classList.toggle('show', edited);
+}
+
+function bindScheduleEvents() {
+  document.querySelectorAll('.inp-start, .inp-end').forEach(inp => {
+    inp.addEventListener('change', ev => {
+      const { w, d } = ev.target.dataset;
+      const day = state.schedule[w][d];
+      day[ev.target.classList.contains('inp-start') ? 'start' : 'end'] = ev.target.value;
+      updateDayRow(ev.target.closest('tr'), day, true);
+      updateWeekSummary(Number(w));
+    });
+  });
+  document.querySelectorAll('.chk-designated').forEach(inp => {
+    inp.addEventListener('change', ev => {
+      const { w, d } = ev.target.dataset;
+      const day = state.schedule[w][d];
+      day.designated = ev.target.checked;
+      updateDayRow(ev.target.closest('tr'), day, true);
+      updateWeekSummary(Number(w));
+      ev.target.closest('tr').classList.toggle('holiday-bg', ev.target.checked || isPublicHoliday(day.date));
+    });
+  });
+  document.querySelectorAll('.inp-mworked, .inp-mnight').forEach(inp => {
+    inp.addEventListener('change', ev => {
+      const { w, d } = ev.target.dataset;
+      const day = state.schedule[w][d];
+      const isWorked = ev.target.classList.contains('inp-mworked');
+      const key = isWorked ? 'manualWorked' : 'manualNight';
+      if (parseHHMM(ev.target.value) === null) {
+        toast('시간은 HH:MM 형식으로 입력하세요. (예: 08:30)', 'error');
+        ev.target.value = day[key];
+        return;
+      }
+      day[key] = ev.target.value;
+      setEdited(ev.target.closest('tr'), day, isWorked ? 'worked' : 'night', true);
+      updateWeekSummary(Number(w));
+    });
+  });
+  document.querySelectorAll('.reset-manual').forEach(btn => {
+    btn.addEventListener('click', ev => {
+      const { w, d } = ev.currentTarget.dataset;
+      const day = state.schedule[w][d];
+      const tr = ev.currentTarget.closest('tr');
+      const isWorked = ev.currentTarget.classList.contains('rst-worked');
+      const r = calcDaily(day);
+      if (isWorked) { day.manualWorked = fmtHM(r.worked); tr.querySelector('.inp-mworked').value = day.manualWorked; }
+      else { day.manualNight = fmtHM(r.night); tr.querySelector('.inp-mnight').value = day.manualNight; }
+      setEdited(tr, day, isWorked ? 'worked' : 'night', false);
+      updateWeekSummary(Number(w));
+    });
+  });
+  document.querySelectorAll('.pre-reg, .pre-ot').forEach(inp => {
+    inp.addEventListener('change', ev => {
+      const w = ev.target.dataset.w;
+      const key = ev.target.classList.contains('pre-reg') ? 'regular' : 'overtime';
+      state.prepaid[w][key] = Number(ev.target.value) || 0;
+    });
+  });
+}
+
+/* ===================== 결과 렌더링 ===================== */
+function showResults() {
+  lastResults = performCalculations();
+  renderResults();
+  document.getElementById('results').style.display = '';
+  document.getElementById('results').scrollIntoView({ behavior: 'smooth' });
+}
+
+function renderResults() {
+  if (!lastResults) return;
+  const { weekly, overall } = lastResults;
+  const body = document.getElementById('resultBody');
+  body.innerHTML = '';
+
+  weekly.forEach(r => {
+    const tr = document.createElement('tr');
+    if (r.excluded) {
+      tr.className = 'excluded';
+      tr.innerHTML = '<td>' + r.week + '주차</td><td colspan="9">근무 기록 없음 — 계산에서 제외</td>';
+      body.appendChild(tr);
+      return;
+    }
+    const over64 = r.total > 64 * 60;
+    tr.innerHTML =
+      '<td>' + r.week + '주차' + (over64 ? ' <span class="warn" title="주 64시간 초과">⚠</span>' : '') + '</td>' +
+      '<td>' + fmtResult(r.total) + '</td>' +
+      '<td>' + fmtResult(r.reg) + '</td>' +
+      '<td>' + fmtResult(r.ot) + '</td>' +
+      '<td>' + fmtResult(r.holReg) + '</td>' +
+      '<td>' + fmtResult(r.holOT) + '</td>' +
+      '<td>' + fmtResult(r.night) + '</td>' +
+      '<td>' + fmtResult(r.comp) + '</td>' +
+      '<td>' + fmtResult(r.prepaidComp) + '</td>' +
+      '<td class="' + (r.net < 0 ? 'neg' : '') + '"><b>' + fmtResult(r.net) + '</b></td>';
+    body.appendChild(tr);
+  });
+
+  document.getElementById('statComp').textContent = fmtResult(overall.comp);
+  document.getElementById('statPrepaid').textContent = fmtResult(overall.prepaidComp);
+  const netEl = document.getElementById('statNet');
+  netEl.textContent = fmtResult(overall.net);
+  netEl.classList.toggle('neg', overall.net < 0);
+  document.getElementById('statVacation').textContent = fmtResult(overall.vacation);
+}
+
+/* ===================== 근무일.txt 파싱 ===================== */
+// 파일 전체를 엔트리로 해석. "1월"/"26년 1월"/"2026년 1월" 헤더로 월(과 연도)을 추적하고,
+// 연도가 명시되지 않으면 요일 대조로 자동 추론.
+function parseWorkLogText(text) {
+  const entries = []; // {month, day, dowKo, start, end, status, yearOffset, lineNo}
+  const failed = [];  // {lineNo, line}
+  let month = null, yearOffset = 0, prevMonth = null, hasMonthHeader = false;
+  let baseYear = null; // 헤더에 명시된 연도 (시작 시점 기준)
+
+  text.split('\n').forEach((raw, idx) => {
+    const line = raw.replace(/\s+$/, '');
+    if (!line.trim()) return;
+
+    const mh = /^(?:(\d{2,4})\s*년\s*)?(\d{1,2})월/.exec(line.trim());
+    if (mh && !line.includes('[')) {
+      month = Number(mh[2]);
+      hasMonthHeader = true;
+      if (prevMonth !== null && month < prevMonth) yearOffset++; // 12월→1월 등 해 넘김
+      prevMonth = month;
+      if (mh[1] !== undefined) {
+        let y = Number(mh[1]);
+        if (y < 100) y += 2000;            // '26년' → 2026
+        if (baseYear === null) baseYear = y - yearOffset;
+      }
+      return;
+    }
+
+    const dm = /^(\d{1,2})\s*\[\s*([월화수목금토일])\s*\]\s*(.*)$/.exec(line.trim());
+    if (!dm) { failed.push({ lineNo: idx + 1, line: line.trim() }); return; }
+
+    const rest = dm[3];
+    const tm = /(\d{1,2}:\d{2})\s+(\d{1,2}:\d{2})/.exec(rest);
+    const status = rest.replace(/(\d{1,2}:\d{2})/g, '').trim();
+    entries.push({
+      month, day: Number(dm[1]), dowKo: dm[2],
+      start: tm ? tm[1] : null, end: tm ? tm[2] : null,
+      status, yearOffset, lineNo: idx + 1
+    });
+  });
+
+  return { entries, failed, hasMonthHeader, baseYear };
+}
+
+// 연도 결정: 파일에 명시된 연도를 우선 사용하고(요일 검증 통과 시),
+// 없거나 검증 실패면 모든 엔트리의 (월·일·요일)이 맞아떨어지는 연도를 탐색 (올해 ±, 최근 우선)
+function inferYear(entries, baseYear) {
+  const dated = entries.filter(e => e.month !== null);
+  const matchesAll = y => dated.every(e => {
+    const d = new Date(y + e.yearOffset, e.month - 1, e.day);
+    return d.getMonth() === e.month - 1 && DOW_KO[d.getDay()] === e.dowKo;
+  });
+  if (baseYear !== null && matchesAll(baseYear)) return baseYear;
+  const cy = new Date().getFullYear();
+  const candidates = [cy, cy - 1, cy + 1, cy - 2, cy - 3, cy - 4, cy - 5, cy - 6];
+  for (const y of candidates) {
+    if (matchesAll(y)) return y;
+  }
+  // 명시 연도가 있으면 일부 요일이 어긋나도 명시 연도를 신뢰
+  return baseYear;
+}
+
+function applyWorkLog(text) {
+  const { entries, failed, hasMonthHeader, baseYear } = parseWorkLogText(text);
+  const dated = entries.filter(e => e.month !== null);
+
+  if (!hasMonthHeader || !dated.length) {
+    // 월 정보가 없으면 기존 스케줄에 일자+요일 매칭으로만 적용 (구버전 방식)
+    if (!state.schedule.length) { toast('파일에 "N월" 헤더가 없어 기간을 인식할 수 없습니다. 먼저 스케줄을 생성한 뒤 다시 시도하세요.', 'error'); return false; }
+    return legacyApply(entries, failed);
+  }
+
+  const year = inferYear(entries, baseYear);
+  if (year === null) { toast('날짜와 요일이 일치하는 연도를 찾지 못했습니다. 파일 내용을 확인하세요.', 'error'); return; }
+
+  if (state.schedule.length && hasAnyInput()
+      && !confirm('파일을 적용하면 현재 입력된 스케줄이 새로 생성됩니다.\n계속할까요?')) return;
+
+  // 기간: 첫 엔트리 ~ 마지막 의미있는(시간 또는 상태가 있는) 엔트리
+  const toDate = e => new Date(year + e.yearOffset, e.month - 1, e.day);
+  const first = toDate(dated[0]);
+  const meaningful = dated.filter(e => (e.start && e.end) || e.status);
+  const last = toDate(meaningful.length ? meaningful[meaningful.length - 1] : dated[dated.length - 1]);
+  const totalDays = Math.round((last - first) / 86400000) + 1;
+  let weeks = Math.ceil(totalDays / 7);
+  let clampNote = '';
+  if (weeks < MIN_WEEKS) weeks = MIN_WEEKS;
+  if (weeks > MAX_WEEKS) { weeks = MAX_WEEKS; clampNote = ' (최대 ' + MAX_WEEKS + '주로 제한됨)'; }
+
+  buildSchedule(weeks, dateToStr(first));
+
+  // 날짜 → 스케줄 칸 매핑
+  const byDate = {};
+  state.schedule.forEach(week => week.forEach(day => { byDate[day.date] = day; }));
+
+  let applied = 0, holiday = 0, absent = 0, empty = 0, outOfRange = 0;
+  dated.forEach(e => {
+    const dStr = dateToStr(toDate(e));
+    const day = byDate[dStr];
+    const hasTime = e.start && e.end;
+    if (!day) { if (hasTime) outOfRange++; return; }
+    if (hasTime) {
+      day.start = e.start.padStart(5, '0');
+      day.end = e.end.padStart(5, '0');
+      const r = calcDaily(day);
+      day.manualWorked = fmtHM(r.worked);
+      day.manualNight = fmtHM(r.night);
+      applied++;
+    } else if (/휴일|휴무/.test(e.status)) holiday++;
+    else if (/결근/.test(e.status)) absent++;
+    else empty++;
+  });
+
+  renderSchedule();
+  document.getElementById('results').style.display = 'none';
+
+  // 파싱 리포트
+  const rep = document.getElementById('parseReport');
+  let html = '<b>파일 적용 결과</b> — 기간 자동 인식: ' + dateToStr(first) + ' ~ ' + dateToStr(last)
+           + ' (' + year + '년, ' + weeks + '주)' + clampNote + '<br>'
+           + '✅ 근무 입력 <b>' + applied + '건</b> · 휴일 ' + holiday + '건 · 결근 ' + absent + '건 · 빈 날짜 ' + empty + '건';
+  if (outOfRange) html += ' · <span class="fail">기간 밖 근무 ' + outOfRange + '건</span>';
+  if (failed.length) {
+    html += '<br><span class="fail">⚠ 인식 실패 ' + failed.length + '건: '
+          + failed.slice(0, 5).map(f => f.lineNo + '행 "' + f.line.slice(0, 20) + '"').join(', ')
+          + (failed.length > 5 ? ' 외 ' + (failed.length - 5) + '건' : '') + '</span>';
+  }
+  rep.innerHTML = html;
+  rep.style.display = '';
+  toast('근무 입력 ' + applied + '건이 적용되었습니다.', 'success');
+  return true;
+}
+
+function legacyApply(entries, failed) {
+  let applied = 0;
+  entries.forEach(e => {
+    if (!(e.start && e.end)) return;
+    state.schedule.forEach(week => week.forEach(day => {
+      const d = new Date(day.date + 'T00:00:00');
+      if (d.getDate() === e.day && DOW_KO[d.getDay()] === e.dowKo) {
+        day.start = e.start.padStart(5, '0');
+        day.end = e.end.padStart(5, '0');
+        const r = calcDaily(day);
+        day.manualWorked = fmtHM(r.worked);
+        day.manualNight = fmtHM(r.night);
+        applied++;
+      }
+    }));
+  });
+  renderSchedule();
+  const rep = document.getElementById('parseReport');
+  rep.innerHTML = '<b>파일 적용 결과</b> — 기존 스케줄에 ' + applied + '건 입력'
+    + (failed.length ? ' · <span class="fail">인식 실패 ' + failed.length + '건</span>' : '');
+  rep.style.display = '';
+  toast('근무 입력 ' + applied + '건이 적용되었습니다.', 'success');
+  return true;
+}
+
+/* ===================== 데이터 저장/불러오기 (.txt) ===================== */
+// 업로드한 근무일 파일이 있으면 "원본파일명_수정_yymmdd.txt", 없으면 "탄력근로_데이터_시작일.txt"
+function makeSaveName() {
+  if (state.sourceName) {
+    const now = new Date();
+    const yymmdd = String(now.getFullYear()).slice(2)
+      + String(now.getMonth() + 1).padStart(2, '0')
+      + String(now.getDate()).padStart(2, '0');
+    const base = state.sourceName.replace(/\.[^.]+$/, '').replace(/_수정_\d{6}$/, '');
+    return base + '_수정_' + yymmdd + '.txt';
+  }
+  return '탄력근로_데이터_' + state.startDate + '.txt';
+}
+function saveJSON() {
+  if (!state.schedule.length) { toast('저장할 스케줄이 없습니다.', 'error'); return; }
+  const name = makeSaveName();
+  const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'text/plain' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  toast('파일로 저장했습니다: ' + name, 'success');
+}
+function loadJSON(text) {
+  try {
+    const data = JSON.parse(text);
+    if (!Array.isArray(data.schedule) || !Array.isArray(data.prepaid)) throw new Error('형식 오류');
+    state.weeks = data.weeks; state.startDate = data.startDate;
+    state.schedule = data.schedule; state.prepaid = data.prepaid;
+    state.sourceName = data.sourceName || null;
+    // 구버전 파일 호환: 수동수정 플래그가 없으면 false로
+    state.schedule.forEach(week => week.forEach(d => {
+      if (d.editedWorked === undefined) d.editedWorked = false;
+      if (d.editedNight === undefined) d.editedNight = false;
+    }));
+    document.getElementById('periodWeeks').value = state.weeks;
+    document.getElementById('startDate').value = state.startDate;
+    renderSchedule();
+    document.getElementById('results').style.display = 'none';
+    toast('파일을 불러왔습니다.', 'success');
+  } catch (e) {
+    toast('파일을 읽을 수 없습니다: ' + e.message, 'error');
+  }
+}
+
+/* ===================== 초기화 ===================== */
+(function init() {
+  const sel = document.getElementById('periodWeeks');
+  for (let w = MIN_WEEKS; w <= MAX_WEEKS; w++) {
+    const opt = document.createElement('option');
+    opt.value = w; opt.textContent = w + '주';
+    if (w === 4) opt.selected = true;
+    sel.appendChild(opt);
+  }
+  document.getElementById('startDate').value = dateToStr(new Date());
+
+  document.getElementById('btnGenerate').addEventListener('click', generateSchedule);
+  document.getElementById('btnCalc').addEventListener('click', showResults);
+  document.getElementById('btnSave').addEventListener('click', saveJSON);
+  document.getElementById('btnLoad').addEventListener('click', () => document.getElementById('jsonFile').click());
+  document.getElementById('btnTxt').addEventListener('click', () => document.getElementById('txtFile').click());
+  document.getElementById('fmtToggle').addEventListener('change', ev => {
+    resultFmtDecimal = ev.target.checked;
+    renderResults();
+  });
+
+  document.getElementById('txtFile').addEventListener('change', ev => {
+    const f = ev.target.files[0];
+    if (!f) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (applyWorkLog(reader.result)) state.sourceName = f.name;
+    };
+    reader.readAsText(f, 'utf-8');
+    ev.target.value = '';
+  });
+  document.getElementById('jsonFile').addEventListener('change', ev => {
+    const f = ev.target.files[0];
+    if (!f) return;
+    const reader = new FileReader();
+    reader.onload = () => loadJSON(reader.result);
+    reader.readAsText(f, 'utf-8');
+    ev.target.value = '';
+  });
+})();
+</script>
+</body>
+</html>
