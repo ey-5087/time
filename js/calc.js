@@ -174,7 +174,7 @@
       const wk = ag.weeks[i];
       const A = Math.round((Number(wk.regular) || 0) * HOUR);
       const F = Math.round((wk.fixedOT === '' || wk.fixedOT === undefined || wk.fixedOT === null ? 12 : Number(wk.fixedOT)) * HOUR);
-      const r = { index: i + 1, start: H.addDays(ag.start, i * 7), A, F, days: [], W: 0, H1: 0, H2: 0, N: 0, L: 0, hasData: false };
+      const r = { index: i + 1, start: H.addDays(ag.start, i * 7), A, F, days: [], W: 0, H1: 0, H2: 0, N: 0, L: 0, SA: 0, SB: 0, SC: 0, hasData: false };
       for (let d = 0; d < 7; d++) {
         const date = H.addDays(ag.start, i * 7 + d);
         inPeriod[date] = true;
@@ -191,6 +191,7 @@
           r.W += e.total;
         }
         r.N += e.night;
+        r.SA += e.normal; r.SB += e.ext; r.SC += e.night;   // 화면 표시용 정상·연장·야간 주 합계 (휴일 포함)
         r.L += e.late;
       }
       r.end = H.addDays(r.start, 6);

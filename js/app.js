@@ -152,6 +152,9 @@
       '<input type="number" min="0" step="1" data-i="' + i + '" data-k="regular" value="' + esc(wk.regular) + '" aria-label="' + (i + 1) + '주차 정규근무">' +
       '<input type="number" min="0" step="1" data-i="' + i + '" data-k="fixedOT" value="' + esc(wk.fixedOT) + '" aria-label="' + (i + 1) + '주차 연장근무">' +
       '<input type="number" min="0" step="1" data-i="' + i + '" data-k="written" value="' + esc(wk.written) + '" placeholder="' + sum + '" class="' + (bad ? 'bad' : '') + '" aria-label="' + (i + 1) + '주차 근로시간">' +
+      '<div class="ag-sum" title="이번 주 실제 정상(A) 합계"><i class="dot a"></i>' + f(w.SA) + '</div>' +
+      '<div class="ag-sum" title="이번 주 실제 연장(B) 합계"><i class="dot b"></i>' + f(w.SB) + '</div>' +
+      '<div class="ag-sum" title="이번 주 실제 야간(C) 합계"><i class="dot c"></i>' + f(w.SC) + '</div>' +
       '<div class="ag-calc' + (bad ? ' bad' : '') + '">' + (bad ? '⚠ 계산 기준 ' + sum + 'h' : '기준 ' + sum + 'h') + '</div></div>';
   }
 
@@ -181,7 +184,7 @@
     const ag = st.agreement;
     let html = '<div class="row head"><div>주차</div>' +
       ['월', '화', '수', '목', '금', '토', '일'].map((k, i) => '<div class="' + (i === 6 ? 'h-sun' : i === 5 ? 'h-sat' : '') + '">' + k + '</div>').join('') +
-      '<div class="h-ag"><span>정규근무</span><span>연장근무</span><span>근로시간</span></div><div class="h-st">주별 정산</div></div>';
+      '<div class="h-ag"><span><i class="dot a"></i>정규근무</span><span><i class="dot b"></i>연장근무</span><span>근로시간</span></div><div class="h-st">주별 정산</div></div>';
 
     // 시작일이 월요일이 아니면 머리글 요일을 시작 요일 기준으로
     if (ag.start && H.dow(ag.start) !== 1) {

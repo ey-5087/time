@@ -150,7 +150,7 @@ main { padding: 16px 20px 40px; max-width: 1560px; margin: 0 auto; }
 
 /* ---------- 주간 정산표 ---------- */
 .board {
-  --cols: 58px repeat(7, minmax(86px, 1fr)) 168px minmax(250px, 290px);
+  --cols: 58px repeat(7, minmax(86px, 1fr)) 196px minmax(250px, 290px);
   background: var(--surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow);
 }
 .board > :last-child { border-radius: 0 0 12px 12px; }
@@ -163,6 +163,7 @@ main { padding: 16px 20px 40px; max-width: 1560px; margin: 0 auto; }
 .row.head > div { padding: 8px 6px; text-align: center; }
 .row.head .h-sun { color: var(--hol); } .row.head .h-sat { color: var(--off); }
 .row.head .h-ag { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; font-size: 11px; white-space: nowrap; padding-left: 4px; padding-right: 4px; }
+.row.head .h-ag span { display: inline-flex; align-items: center; justify-content: center; gap: 3px; }
 .wk {
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
   font-weight: 700; border-right: 1px solid var(--line); padding: 6px 2px;
@@ -206,6 +207,7 @@ main { padding: 16px 20px 40px; max-width: 1560px; margin: 0 auto; }
 .ag input.bad { border-color: var(--warn-ink); background: var(--warn-bg); }
 .ag .ag-calc { grid-column: 1 / -1; font-size: 11px; color: var(--muted); text-align: center; }
 .ag .ag-calc.bad { color: var(--warn-ink); }
+.ag .ag-sum { display: flex; align-items: center; justify-content: center; gap: 4px; font-size: 12px; font-weight: 600; border-top: 1px dashed var(--line-strong); padding-top: 4px; }
 
 .st { padding: 8px 12px; display: flex; flex-direction: column; gap: 5px; justify-content: center; }
 .st-bar { position: relative; height: 10px; border-radius: 5px; background: var(--surface-2); border: 1px solid var(--line); overflow: hidden; }
