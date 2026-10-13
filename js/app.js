@@ -122,9 +122,10 @@
     if (e && e.src !== 'none' && e.total + e.late > 0) {
       body += '<div class="d-total">' + fShort(e.total) + '</div>';
       const parts = [];
-      if (e.normal) parts.push('<span><i class="dot a"></i>' + fShort(e.normal) + '</span>');
-      if (e.ext) parts.push('<span><i class="dot b"></i>' + fShort(e.ext) + '</span>');
-      if (e.night) parts.push('<span><i class="dot c"></i>' + fShort(e.night) + '</span>');
+      const ring = d.type === 'holiday' ? ' ring' : '';   // 휴일 근무는 속 빈 동그라미
+      if (e.normal) parts.push('<span><i class="dot a' + ring + '"></i>' + fShort(e.normal) + '</span>');
+      if (e.ext) parts.push('<span><i class="dot b' + ring + '"></i>' + fShort(e.ext) + '</span>');
+      if (e.night) parts.push('<span><i class="dot c' + ring + '"></i>' + fShort(e.night) + '</span>');
       body += '<div class="d-split">' + parts.join('') + '</div>';
     } else {
       body += '<div class="d-total empty">—</div>';
@@ -152,9 +153,12 @@
       '<input type="number" min="0" step="1" data-i="' + i + '" data-k="regular" value="' + esc(wk.regular) + '" aria-label="' + (i + 1) + '주차 정규근무">' +
       '<input type="number" min="0" step="1" data-i="' + i + '" data-k="fixedOT" value="' + esc(wk.fixedOT) + '" aria-label="' + (i + 1) + '주차 연장근무">' +
       '<input type="number" min="0" step="1" data-i="' + i + '" data-k="written" value="' + esc(wk.written) + '" placeholder="' + sum + '" class="' + (bad ? 'bad' : '') + '" aria-label="' + (i + 1) + '주차 근로시간">' +
-      '<div class="ag-sum" title="이번 주 실제 정상(A) 합계"><i class="dot a"></i>' + f(w.SA) + '</div>' +
-      '<div class="ag-sum" title="이번 주 실제 연장(B) 합계"><i class="dot b"></i>' + f(w.SB) + '</div>' +
-      '<div class="ag-sum" title="이번 주 실제 야간(C) 합계"><i class="dot c"></i>' + f(w.SC) + '</div>' +
+      '<div class="ag-sum" title="이번 주 정상(A) 합계 (휴일 제외)"><i class="dot a"></i>' + f(w.SA) + '</div>' +
+      '<div class="ag-sum" title="이번 주 연장(B) 합계 (휴일 제외)"><i class="dot b"></i>' + f(w.SB) + '</div>' +
+      '<div class="ag-sum" title="이번 주 야간(C) 합계 (휴일 제외)"><i class="dot c"></i>' + f(w.SC) + '</div>' +
+      (w.HA + w.HB + w.HC ? '<div class="ag-sum hol" title="휴일 정상 합계"><i class="dot a ring"></i>' + f(w.HA) + '</div>' +
+        '<div class="ag-sum hol" title="휴일 연장 합계"><i class="dot b ring"></i>' + f(w.HB) + '</div>' +
+        '<div class="ag-sum hol" title="휴일 야간 합계"><i class="dot c ring"></i>' + f(w.HC) + '</div>' : '') +
       '<div class="ag-calc' + (bad ? ' bad' : '') + '">' + (bad ? '⚠ 계산 기준 ' + sum + 'h' : '기준 ' + sum + 'h') + '</div></div>';
   }
 
