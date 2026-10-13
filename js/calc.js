@@ -89,7 +89,12 @@
    * rec: { in, out, leave, status, excel:{normal,ext,night,late}|null, manual:{normal,ext,night,late}|null }
    */
   function effectiveDay(rec, type) {
-    const auto = autoCalc(rec.in ?? null, rec.out ?? null, type, rec.leave || leaveFromStatus(rec.status));
+    const leave = rec.leave || leaveFromStatus(rec.status);
+    // 탄력 조정일: 근태상 근무로 간주되지만 실제 근로가 아니므로 계산에서는 0 (근태 엑셀·수정값보다 우선)
+    if (leave === '탄력조정') {
+      return { src: 'adjust', auto: autoCalc(null, null, type, ''), capped: false, normal: 0, ext: 0, night: 0, late: 0, total: 0, needsApproval: false };
+    }
+    const auto = autoCalc(rec.in ?? null, rec.out ?? null, type, leave);
     let src = 'none', v = null;
     if (hasVals(rec.manual)) { src = 'manual'; v = rec.manual; }
     else if (hasVals(rec.excel)) { src = 'excel'; v = rec.excel; }
@@ -114,6 +119,8 @@
     if (out.night > NIGHT[1] - NIGHT[0]) { out.night = NIGHT[1] - NIGHT[0]; out.capped = true; }
     if (type !== 'workday') out.late = 0;          // 휴일·휴무일은 지각 없음
     out.total = out.normal + out.ext + out.night;
+    // 토요일(휴무일) 근무는 승인된 시간으로 계산: 승인 시간(직접 입력)이 없으면 표시
+    out.needsApproval = type === 'offday' && out.total > 0 && out.src !== 'manual';
     return out;
   }
 
@@ -124,6 +131,7 @@
     if (s.indexOf('오후반차') >= 0) return '오후반차';
     if (s.indexOf('연차') >= 0 || s === '휴가') return '연차';
     if (s.indexOf('결근') >= 0) return '결근';
+    if (s.indexOf('탄력조정') >= 0) return '탄력조정';
     return '';
   }
 

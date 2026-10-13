@@ -228,3 +228,28 @@ test('기획서 마크다운 변환: 표·목록·코드·목차', () => {
   assert.doesNotMatch(md, /^## 1[1-6]\. /m);
   assert.ok(!/<script/i.test(real.html));
 });
+
+test('탄력 조정일: 근태 엑셀에 정상 8:00이 있어도 계산 0', () => {
+  const rec = { in: 532, out: 1116, status: '정상', leave: '탄력조정', excel: { normal: 480, ext: null, night: null, late: null } };
+  const e = C.effectiveDay(rec, 'workday');
+  assert.equal(e.src, 'adjust');
+  assert.equal(e.total, 0);
+  const st = { agreement: { type: '3m', start: '2026-02-09', weeks: [{ regular: 8, fixedOT: 12, written: '' }] }, days: {
+    '2026-02-09': { excel: { normal: 480 } },
+    '2026-02-10': Object.assign({}, rec),
+    '2026-02-13': { in: 540, out: 1080, leave: '탄력조정', excel: { normal: 480 } }
+  } };
+  const w = C.compute(st).weeks[0];
+  assert.equal(w.W, 480);
+  assert.equal(w.comp, 0);
+});
+
+test('토요일 근무는 승인 시간 입력 전까지 승인 필요 표시, 입력하면 그 값으로 계산', () => {
+  const rec = { in: 845, out: 1462, excel: { normal: 420, ext: null, night: 140 } };
+  assert.equal(C.effectiveDay(rec, 'offday').needsApproval, true);
+  assert.equal(C.effectiveDay(rec, 'workday').needsApproval, false);
+  rec.manual = { normal: 300, ext: 80, night: 140, late: 0 };
+  const e = C.effectiveDay(rec, 'offday');
+  assert.equal(e.needsApproval, false);
+  assert.equal(e.total, 520);
+});
