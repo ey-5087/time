@@ -74,9 +74,14 @@
   <section class="board" id="board" aria-label="주간 정산표"></section>
 
   <section class="legend" aria-label="범례">
-    <span><i class="dot a"></i>정상(A)</span>
-    <span><i class="dot b"></i>연장(B)</span>
-    <span><i class="dot c"></i>야간(C)</span>
+    <span class="lg-group">합의 기준</span>
+    <span><i class="sq r"></i>정규</span>
+    <span><i class="sq f"></i>연장 (고정 OT 안)</span>
+    <span><i class="sq o"></i>고정 OT 초과</span>
+    <span class="lg-group">시간대</span>
+    <span><i class="dot a"></i>정상 09~18</span>
+    <span><i class="dot b"></i>연장 18:30~22</span>
+    <span><i class="dot c"></i>야간 22~</span>
     <span><i class="dot a ring"></i><i class="dot b ring"></i><i class="dot c ring"></i>휴일 근무</span>
     <span><i class="sw sw-hol"></i>휴일</span>
     <span><i class="sw sw-off"></i>휴무일</span>
@@ -156,7 +161,7 @@
     <div class="ag-table-wrap">
       <table class="ag-table">
         <thead>
-          <tr><th scope="col">주차</th><th scope="col">기간</th><th scope="col"><i class="dot a"></i> 정규근무<small>(h)</small></th><th scope="col"><i class="dot b"></i> 연장근무<small>(h)</small></th><th scope="col">근로시간<small>(h)</small></th><th scope="col">계산 기준</th></tr>
+          <tr><th scope="col">주차</th><th scope="col">기간</th><th scope="col"><i class="sq r"></i> 정규근무<small>(h)</small></th><th scope="col"><i class="sq f"></i> 연장근무<small>(h)</small></th><th scope="col">근로시간<small>(h)</small></th><th scope="col">계산 기준</th></tr>
         </thead>
         <tbody id="agRows"></tbody>
         <tfoot id="agFoot"></tfoot>

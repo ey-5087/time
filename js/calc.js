@@ -200,6 +200,9 @@
       r.end = H.addDays(r.start, 6);
       r.OT = Math.max(0, r.W - A);
       r.OTx = Math.max(0, r.OT - F);
+      // 합의 기준 분류: 합의한 정규 시간까지는 시간대와 상관없이 정규, 넘은 부분만 연장
+      r.REG = Math.min(r.W, A);
+      r.OTin = Math.min(r.OT, F);
       r.otPay = r.OTx * 1.5;
       r.holPay = r.H1 * 1.5 + r.H2 * 2.0;
       r.nightPay = r.N * 0.5;
