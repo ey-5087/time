@@ -521,7 +521,7 @@
     r.weeks.forEach(w => rows.push([w.index, w.start, w.end, h(w.A), h(w.F), h(w.W), h(w.OT), h(w.OTx), h(w.otPay), h(w.H1), h(w.H2), h(w.holPay), h(w.N), h(w.nightPay), h(w.L), h(w.comp)]));
     const t = r.total;
     rows.push(['합계', '', '', '', '', h(t.W), h(t.OT), h(t.OTx), h(t.otPay), h(t.H1), h(t.H2), h(t.holPay), h(t.N), h(t.nightPay), h(t.L), h(t.comp)]);
-    download('정산결과_' + store.current + '_' + todayStr() + '.csv', '﻿' + rows.map(x => x.join(',')).join('\r\n'), 'text/csv');
+    download('정산결과_' + store.current + '_' + (S().agreement.start || todayStr()) + '.csv', '﻿' + rows.map(x => x.join(',')).join('\r\n'), 'text/csv');
   }
 
   /* ===================== 산정 기준 (기획서) ===================== */
