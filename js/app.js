@@ -473,12 +473,15 @@
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([text], { type }));
     a.download = name;
+    a.style.display = 'none';
+    document.body.appendChild(a);   // 문서에 붙여야 파일명이 지켜지는 브라우저가 있음
     a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
   }
   function saveFile() {
     const data = { app: 'flexcomp', version: 2, appVersion: window.FC.version.APP_VERSION, profile: store.current, savedAt: new Date().toISOString(), state: S() };
-    download('탄력근로정산_' + store.current + '_' + todayStr() + '.json', JSON.stringify(data, null, 2), 'application/json');
+    // 파일명은 탄력근로 시작일 기준 (시작일이 없으면 오늘 날짜)
+    download('탄력근로정산_' + store.current + '_' + (S().agreement.start || todayStr()) + '.json', JSON.stringify(data, null, 2), 'application/json');
     toast('파일로 저장했습니다.');
   }
   function loadFile(text) {
