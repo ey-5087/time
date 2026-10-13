@@ -206,7 +206,7 @@
       r.otPay = r.OTx * 1.5;
       r.holPay = r.H1 * 1.5 + r.H2 * 2.0;
       r.nightPay = r.N * 0.5;
-      r.comp = r.otPay + r.holPay + r.nightPay - r.L;
+      r.comp = r.otPay + r.holPay + r.nightPay;   // 지각(L)은 공제하지 않고 따로 표시 — 추후 별도 공제
       weeks.push(r);
       ['W', 'OT', 'OTx', 'H1', 'H2', 'N', 'L', 'comp', 'otPay', 'holPay', 'nightPay'].forEach(k => { total[k] += r[k]; });
     }

@@ -90,7 +90,7 @@
     $('sumHolRaw').textContent = f(t.H1) + ' ×1.5 + ' + f(t.H2) + ' ×2.0';
     $('sumNight').textContent = f(t.nightPay);
     $('sumNightRaw').textContent = '야간 ' + f(t.N);
-    $('sumLate').textContent = t.L ? '−' + f(t.L) : f(0);
+    $('sumLate').textContent = f(t.L);
 
     const notes = [];
     res.warnings.forEach(w => notes.push(['warn', w]));
@@ -184,7 +184,7 @@
       '<span>휴일 8h 이내 ' + f(w.H1) + ' ×1.5</span>' + v(w.H1 * 1.5) +
       '<span>휴일 8h 초과 ' + f(w.H2) + ' ×2.0</span>' + v(w.H2 * 2.0) +
       '<span>야간 ' + f(w.N) + ' ×0.5</span>' + v(w.nightPay) +
-      '<span>지각</span>' + v(w.L, true) +
+      '<span>지각 (별도 공제, 보상에 미반영)</span>' + v(w.L) +
       '</div>' +
       '<div class="st-total"><span>주 보상</span><b class="' + (w.comp < 0 ? 'neg' : '') + '">' + f(w.comp) + '</b></div></div>';
   }
@@ -517,7 +517,7 @@
     const r = lastResult;
     if (!r || !r.weeks.length) return;
     const h = m => (m / 60).toFixed(2);
-    const rows = [['주차', '시작', '종료', '정규(A)', '고정OT(F)', '실근로', '연장', '고정OT초과', '연장보상(x1.5)', '휴일8h이내', '휴일8h초과', '휴일보상', '야간', '야간가산(x0.5)', '지각', '주별보상']];
+    const rows = [['주차', '시작', '종료', '정규(A)', '고정OT(F)', '실근로', '연장', '고정OT초과', '연장보상(x1.5)', '휴일8h이내', '휴일8h초과', '휴일보상', '야간', '야간가산(x0.5)', '지각(별도공제)', '주별보상(지각 미반영)']];
     r.weeks.forEach(w => rows.push([w.index, w.start, w.end, h(w.A), h(w.F), h(w.W), h(w.OT), h(w.OTx), h(w.otPay), h(w.H1), h(w.H2), h(w.holPay), h(w.N), h(w.nightPay), h(w.L), h(w.comp)]));
     const t = r.total;
     rows.push(['합계', '', '', '', '', h(t.W), h(t.OT), h(t.OTx), h(t.otPay), h(t.H1), h(t.H2), h(t.holPay), h(t.N), h(t.nightPay), h(t.L), h(t.comp)]);

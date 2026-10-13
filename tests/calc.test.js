@@ -122,9 +122,11 @@ test('합의 32시간 주에 50시간: 연장 18h → 고정 OT 초과 6h × 1.5
   assert.equal(w.comp, 9 * 60);
 });
 
-test('지각은 1.0배 공제, 음수도 그대로', () => {
+test('지각은 공제하지 않고 따로 집계', () => {
   const st = weekState(40, [['2026-10-12', 8, 0, 0, 1.5]]);
-  assert.equal(C.compute(st).weeks[0].comp, -90);
+  const w = C.compute(st).weeks[0];
+  assert.equal(w.comp, 0);
+  assert.equal(w.L, 90);
 });
 
 test('휴일근로는 연장가산과 중복하지 않음 (8h 이내 1.5, 초과 2.0)', () => {
