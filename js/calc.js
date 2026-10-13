@@ -9,7 +9,8 @@
   const WORK_START = 9 * HOUR;
   const LUNCH = [12 * HOUR, 13 * HOUR];
   const NORMAL_END = 18 * HOUR;
-  const EXT = [19 * HOUR, 22 * HOUR];          // 18~19시 저녁 휴게
+  const EXT = [18 * HOUR + 30, 22 * HOUR];     // 18:00~18:30 저녁 휴게 → 연장 최대 3:30
+  const EXT_MAX = EXT[1] - EXT[0];
   const NIGHT = [22 * HOUR, 30 * HOUR];
   const CAP = 30 * HOUR;                         // 다음 날 06:00
   const HALF_DAY_START = 13 * HOUR;              // 오전 반차 후 시업
@@ -211,7 +212,7 @@
   }
 
   const api = {
-    HOUR, CAP, parseHM, fmtHM, fmtClock, fmtDec, roundTo10, autoCalc, effectiveDay,
+    HOUR, CAP, EXT_MAX, parseHM, fmtHM, fmtClock, fmtDec, roundTo10, autoCalc, effectiveDay,
     leaveFromStatus, statusMismatch, agreementWarnings, compute, TYPES
   };
   root.FC = root.FC || {};

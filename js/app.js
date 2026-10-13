@@ -362,7 +362,7 @@
       ref.push('엑셀: ' + (has ? '정상 ' + C.fmtHM(x.normal || 0) + ' · 연장 ' + C.fmtHM(x.ext || 0) + ' · 야간 ' + C.fmtHM(x.night || 0) : '정상·연장·야간 비어 있음') + (x.late ? ' · 지각 ' + C.fmtHM(x.late) : ''));
     }
     if (rec.in != null && rec.out != null) ref.push('출퇴근 기준 계산: 정상 ' + C.fmtHM(e.auto.normal) + ' · 연장 ' + C.fmtHM(e.auto.ext) + ' · 야간 ' + C.fmtHM(e.auto.night) + ' · 지각 ' + C.fmtHM(e.auto.late));
-    ref.push('정상 09~18시 · 연장 19~22시 · 야간 22시 이후 (30:00까지)');
+    ref.push('정상 09~18시 · 연장 18:30~22시 (최대 3:30) · 야간 22시 이후 (30:00까지)');
     $('dayRef').innerHTML = ref.map(esc).join('<br>');
     $('btnDayReset').disabled = !rec.manual;
     $('dayDlg').showModal();
@@ -386,6 +386,7 @@
     if (dirtyVals) {
       const vals = ['fA', 'fB', 'fC', 'fL'].map(id => $(id).value.trim() === '' ? 0 : C.parseHM($(id).value));
       if (vals.some(v => v === null)) { toast('시간은 H:MM 형식으로 입력하세요 (예: 3:30).', 'error'); return; }
+      if (vals[1] > C.EXT_MAX) { toast('연장은 최대 ' + C.fmtHM(C.EXT_MAX) + '(18:30~22:00)까지 입력할 수 있습니다.', 'error'); return; }
       rec.manual = { normal: vals[0], ext: vals[1], night: vals[2], late: vals[3] };
     }
     st.days[editDate] = rec;
