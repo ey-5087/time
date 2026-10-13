@@ -94,21 +94,19 @@
 
     const notes = [];
     res.warnings.forEach(w => notes.push(['warn', w]));
-    const autoDays = [], mismatch = [], noOut = [], capped = [], needApproval = [], adjustDays = [];
+    const autoDays = [], mismatch = [], noOut = [], capped = [], adjustDays = [];
     res.weeks.forEach(w => w.days.forEach(d => {
       if (!d.rec) return;
       if (d.eff.src === 'auto' && d.rec.in != null) autoDays.push(md(d.date));
       if (C.statusMismatch(d.rec.status, d.type)) mismatch.push(md(d.date) + ' "' + d.rec.status + '"');
       if (d.rec.in != null && d.rec.out == null && d.eff.src !== 'excel' && d.eff.src !== 'manual') noOut.push(md(d.date));
       if (d.eff.capped) capped.push(md(d.date));
-      if (d.eff.needsApproval) needApproval.push(md(d.date));
-      if (d.eff.src === 'adjust') adjustDays.push(md(d.date));
+      if (d.eff.src === 'adjust') adjustDays.push(md(d.date) + (d.eff.autoAdjusted ? '(자동)' : ''));
     }));
     if (autoDays.length) notes.push(['warn', '정상·연장·야간이 비어 있어 출퇴근으로 자동 계산한 날 ' + autoDays.length + '일: ' + autoDays.join(', ') + '. 근태 집계 후 다시 올리면 바뀝니다.']);
     if (noOut.length) notes.push(['warn', '퇴근 기록이 없어 0시간으로 본 날: ' + noOut.join(', ')]);
     if (mismatch.length) notes.push(['warn', '근무상태와 달력의 휴일 여부가 다른 날 (달력 기준으로 계산): ' + mismatch.join(', ')]);
-    if (needApproval.length) notes.push(['warn', '토요일 근무는 승인된 시간으로 계산합니다. 승인 시간이 입력되지 않아 근태 엑셀 값으로 계산 중인 날: ' + needApproval.join(', ') + ' — 날짜 칸을 눌러 승인 시간을 저장하세요.']);
-    if (adjustDays.length) notes.push(['info', '탄력 조정일(근무 간주, 계산 0): ' + adjustDays.join(', ')]);
+    if (adjustDays.length) notes.push(['info', '탄력 조정일(근무 간주, 계산 0): ' + adjustDays.join(', ') + ' — (자동)은 그 주 정상 합계가 합의 정규를 넘어 주의 마지막 날부터 자동 반영한 날입니다. 실제 근무였다면 날짜 칸에서 근태를 "정상 근무 (탄력 조정 안 함)"으로 바꾸세요.']);
     if (capped.length) notes.push(['info', '30:00(새벽 6시) 상한을 적용한 날: ' + capped.join(', ')]);
     res.weeks.forEach(w => { if (w.W + w.H1 + w.H2 > 52 * 60) notes.push(['info', w.index + '주차 총 근로 ' + f(w.W + w.H1 + w.H2) + ' — 주 52시간 초과 (계산에는 영향 없음)']); });
     if (res.outside.length) notes.push(['info', '합의서 기간 밖 기록 ' + res.outside.length + '일은 계산에서 제외했습니다 (' + md(res.outside[0]) + ' ~ ' + md(res.outside[res.outside.length - 1]) + ').']);
@@ -140,10 +138,10 @@
     const flags = [];
     if (e && e.late) flags.push('<span class="flag late">지각 ' + fShort(e.late) + '</span>');
     const leave = rec && (rec.leave || C.leaveFromStatus(rec.status));
-    if (leave) flags.push('<span class="flag leave">' + esc(leave === '탄력조정' ? '탄력 조정일' : leave) + '</span>');
+    if (leave && leave !== '근무') flags.push('<span class="flag leave">' + esc(leave === '탄력조정' ? '탄력 조정일' : leave) + '</span>');
     if (e && e.src === 'auto') flags.push('<span class="flag auto">자동</span>');
-    if (e && e.src === 'manual') flags.push('<span class="flag man">' + (d.type === 'offday' ? '승인' : '수정') + '</span>');
-    if (e && e.needsApproval) flags.push('<span class="flag warn" title="토요일 근무는 승인된 시간으로 계산합니다. 눌러서 승인 시간을 입력하세요.">승인 필요</span>');
+    if (e && e.src === 'manual') flags.push('<span class="flag man">수정</span>');
+    if (e && e.autoAdjusted) flags.push('<span class="flag leave" title="그 주 정상 합계가 합의 정규를 넘어 자동으로 탄력 조정일로 반영">탄력 조정(자동)</span>');
     if (rec && C.statusMismatch(rec.status, d.type)) flags.push('<span class="flag warn" title="근무상태: ' + esc(rec.status) + '">상태 ⚠</span>');
     if (e && e.capped) flags.push('<span class="flag">상한</span>');
     const title = d.date + ' (' + DOW[H.dow(d.date)] + ') ' + ({ holiday: '휴일', offday: '휴무일', workday: '근로일' }[d.type]) + (hol ? ' · ' + hol : '');
@@ -352,7 +350,7 @@
   }
 
   /* ===================== 날짜 편집 ===================== */
-  let editDate = null, dirtyVals = false, dayIsOffday = false;
+  let editDate = null, dirtyVals = false;
   function openDay(date) {
     const st = S();
     editDate = date;
@@ -360,19 +358,17 @@
     const type = H.dayType(date, st.customHolidays, st.removedHolidays);
     const rec = st.days[date] || {};
     const hol = H.holidayName(date, st.customHolidays, st.removedHolidays);
-    const e = C.effectiveDay(rec, type);
+    // 자동 탄력 조정이 반영된 계산 결과를 우선 사용
+    let e = null;
+    (lastResult ? lastResult.weeks : []).forEach(w => w.days.forEach(d => { if (d.date === date && d.eff) e = d.eff; }));
+    if (!e) e = C.effectiveDay(rec, type);
     $('dayTitle').textContent = date + ' (' + DOW[H.dow(date)] + ')';
     $('daySub').textContent = ({ holiday: '휴일', offday: '휴무일', workday: '근로일' }[type]) + (hol ? ' · ' + hol : '') + (rec.status ? ' · 근무상태 "' + rec.status + '"' : '') + (rec.src ? ' · ' + rec.src : '');
     $('fIn').value = rec.in != null ? C.fmtClock(rec.in) : '';
     $('fOut').value = rec.out != null ? C.fmtClock(rec.out) : '';
     $('fLeave').value = rec.leave || C.leaveFromStatus(rec.status) || '';
     $('fA').value = C.fmtHM(e.normal); $('fB').value = C.fmtHM(e.ext); $('fC').value = C.fmtHM(e.night); $('fL').value = C.fmtHM(e.late);
-    const offday = type === 'offday';
-    $('srcNote').textContent = { excel: '— 근태 엑셀 값', manual: offday ? '— 승인 시간' : '— 직접 수정한 값', auto: '— 출퇴근으로 자동 계산', adjust: '— 탄력 조정일 (근무 간주, 계산 0)', none: '' }[e.src];
-    if (offday && e.src !== 'manual' && e.src !== 'adjust') $('srcNote').textContent += ' · 토요일은 승인 시간을 입력하세요';
-    $('btnDaySave').textContent = offday ? '승인 시간 저장' : '저장';
-    $('btnDayReset').textContent = offday ? '승인 시간 지우기' : '직접 수정값 지우기';
-    dayIsOffday = offday;
+    $('srcNote').textContent = { excel: '— 근태 엑셀 값', manual: '— 직접 수정한 값', auto: '— 출퇴근으로 자동 계산', adjust: '— 탄력 조정일 (근무 간주, 계산 0)', none: '' }[e.src];
     const ref = [];
     if (rec.excel) {
       const x = rec.excel, has = [x.normal, x.ext, x.night].some(v => v != null);
@@ -400,8 +396,7 @@
     rec.in = fin;
     rec.out = (fin !== null && fout !== null && fout <= fin) ? fout + 1440 : fout;
     rec.leave = $('fLeave').value;
-    // 토요일은 저장 = 승인 시간 확정 (값을 고치지 않아도 승인 시간으로 저장)
-    if (dirtyVals || (dayIsOffday && rec.leave !== '탄력조정')) {
+    if (dirtyVals) {
       const vals = ['fA', 'fB', 'fC', 'fL'].map(id => $(id).value.trim() === '' ? 0 : C.parseHM($(id).value));
       if (vals.some(v => v === null)) { toast('시간은 H:MM 형식으로 입력하세요 (예: 3:30).', 'error'); return; }
       if (vals[1] > C.EXT_MAX) { toast('연장은 최대 ' + C.fmtHM(C.EXT_MAX) + '(18:30~22:00)까지 입력할 수 있습니다.', 'error'); return; }

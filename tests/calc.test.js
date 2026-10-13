@@ -244,12 +244,23 @@ test('탄력 조정일: 근태 엑셀에 정상 8:00이 있어도 계산 0', () 
   assert.equal(w.comp, 0);
 });
 
-test('토요일 근무는 승인 시간 입력 전까지 승인 필요 표시, 입력하면 그 값으로 계산', () => {
-  const rec = { in: 845, out: 1462, excel: { normal: 420, ext: null, night: 140 } };
-  assert.equal(C.effectiveDay(rec, 'offday').needsApproval, true);
-  assert.equal(C.effectiveDay(rec, 'workday').needsApproval, false);
-  rec.manual = { normal: 300, ext: 80, night: 140, late: 0 };
-  const e = C.effectiveDay(rec, 'offday');
-  assert.equal(e.needsApproval, false);
-  assert.equal(e.total, 520);
+test('탄력 조정일 자동 반영: 정상 합계가 합의 정규를 넘으면 주의 마지막 날부터', () => {
+  // 5주차: 합의 정규 8h, 근태 엑셀에는 2/9·2/10·2/13 정상 8:00 → 2/13, 2/10이 자동 조정
+  const mk = () => ({ agreement: { type: '3m', start: '2026-02-09', weeks: [{ regular: 8, fixedOT: 12, written: '' }] }, days: {
+    '2026-02-09': { in: 537, out: 1085, status: '정상', excel: { normal: 480 } },
+    '2026-02-10': { in: 532, out: 1116, status: '정상', excel: { normal: 480 } },
+    '2026-02-13': { in: 540, out: 1080, status: '정상', excel: { normal: 480 } }
+  } });
+  let w = C.compute(mk()).weeks[0];
+  assert.deepEqual(w.days.filter(d => d.eff && d.eff.autoAdjusted).map(d => d.date), ['2026-02-10', '2026-02-13']);
+  assert.equal(w.W, 480);
+  assert.equal(w.comp, 0);
+  // '정상 근무 (탄력 조정 안 함)'으로 지정한 날은 건너뛰고 그 앞날을 조정
+  const st = mk(); st.days['2026-02-13'].leave = '근무';
+  w = C.compute(st).weeks[0];
+  assert.deepEqual(w.days.filter(d => d.eff && d.eff.autoAdjusted).map(d => d.date), ['2026-02-09', '2026-02-10']);
+  // 연장·야간이 있는 날은 실제 근무로 보고 조정하지 않음
+  const st2 = mk(); st2.days['2026-02-13'].excel.ext = 60;
+  w = C.compute(st2).weeks[0];
+  assert.deepEqual(w.days.filter(d => d.eff && d.eff.autoAdjusted).map(d => d.date), ['2026-02-09', '2026-02-10']);
 });

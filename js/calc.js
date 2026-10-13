@@ -92,7 +92,7 @@
     const leave = rec.leave || leaveFromStatus(rec.status);
     // 탄력 조정일: 근태상 근무로 간주되지만 실제 근로가 아니므로 계산에서는 0 (근태 엑셀·수정값보다 우선)
     if (leave === '탄력조정') {
-      return { src: 'adjust', auto: autoCalc(null, null, type, ''), capped: false, normal: 0, ext: 0, night: 0, late: 0, total: 0, needsApproval: false };
+      return { src: 'adjust', auto: autoCalc(null, null, type, ''), capped: false, normal: 0, ext: 0, night: 0, late: 0, total: 0 };
     }
     const auto = autoCalc(rec.in ?? null, rec.out ?? null, type, leave);
     let src = 'none', v = null;
@@ -119,8 +119,6 @@
     if (out.night > NIGHT[1] - NIGHT[0]) { out.night = NIGHT[1] - NIGHT[0]; out.capped = true; }
     if (type !== 'workday') out.late = 0;          // 휴일·휴무일은 지각 없음
     out.total = out.normal + out.ext + out.night;
-    // 토요일(휴무일) 근무는 승인된 시간으로 계산: 승인 시간(직접 입력)이 없으면 표시
-    out.needsApproval = type === 'offday' && out.total > 0 && out.src !== 'manual';
     return out;
   }
 
@@ -168,6 +166,24 @@
     return w;
   }
 
+  /* ---------- 탄력 조정일 자동 반영 ----------
+   * 따로 지정하지 않았더라도, 그 주 정상(A) 합계가 합의 정규를 넘으면 넘는 만큼을
+   * 그 주의 마지막 날부터 거꾸로 "정상만 있는 근로일"(연장·야간 없음, 연차·반차 아님)에서 탄력 조정일로 봅니다.
+   * 하루치 정상 시간이 남은 초과분보다 크면 그날은 조정하지 않습니다 (실제 근무로 봄).
+   * 근태를 '정상 근무(조정 안 함)'로 지정한 날은 제외합니다.
+   */
+  function autoAdjust(dayList, A) {
+    let excess = dayList.reduce((a, d) => a + (d.eff && d.type !== 'holiday' ? d.eff.normal : 0), 0) - A;
+    for (let k = dayList.length - 1; k >= 0 && excess > 0; k--) {
+      const d = dayList[k], e = d.eff;
+      if (!e || d.type !== 'workday' || (e.src !== 'excel' && e.src !== 'auto')) continue;
+      const leave = d.rec.leave || leaveFromStatus(d.rec.status);
+      if (leave || e.ext || e.night || !e.normal || e.normal > excess) continue;
+      excess -= e.normal;
+      d.eff = { src: 'adjust', autoAdjusted: true, auto: e.auto, capped: false, normal: 0, ext: 0, night: 0, late: 0, total: 0 };
+    }
+  }
+
   /* ---------- 주·단위기간 정산 ---------- */
   // state: { agreement:{type,start,weeks:[{regular,fixedOT,written}]}, days:{date:rec}, customHolidays, removedHolidays }
   function compute(state) {
@@ -189,8 +205,10 @@
         inPeriod[date] = true;
         const type = H.dayType(date, custom, removed);
         const rec = days[date];
-        const e = rec ? effectiveDay(rec, type) : null;
-        r.days.push({ date, type, rec, eff: e });
+        r.days.push({ date, type, rec, eff: rec ? effectiveDay(rec, type) : null });
+      }
+      autoAdjust(r.days, A);
+      for (const { type, eff: e } of r.days) {
         if (!e) continue;
         if (e.src !== 'none') r.hasData = true;
         if (type === 'holiday') {
