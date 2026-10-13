@@ -153,9 +153,13 @@
       '<input type="number" min="0" step="1" data-i="' + i + '" data-k="regular" value="' + esc(wk.regular) + '" aria-label="' + (i + 1) + '주차 정규근무">' +
       '<input type="number" min="0" step="1" data-i="' + i + '" data-k="fixedOT" value="' + esc(wk.fixedOT) + '" aria-label="' + (i + 1) + '주차 연장근무">' +
       '<input type="number" min="0" step="1" data-i="' + i + '" data-k="written" value="' + esc(wk.written) + '" placeholder="' + sum + '" class="' + (bad ? 'bad' : '') + '" aria-label="' + (i + 1) + '주차 근로시간">' +
-      '<div class="ag-sum" title="이번 주 정상(A) 합계 (휴일 제외)"><i class="dot a"></i>' + f(w.SA) + '</div>' +
-      '<div class="ag-sum" title="이번 주 연장(B) 합계 (휴일 제외)"><i class="dot b"></i>' + f(w.SB) + '</div>' +
-      '<div class="ag-sum" title="이번 주 야간(C) 합계 (휴일 제외)"><i class="dot c"></i>' + f(w.SC) + '</div>' +
+      '<div class="ag-sum" title="합의 기준 정규: 합의한 정규근무 시간까지 (휴일 제외)"><i class="sq r"></i>' + f(w.REG) + '</div>' +
+      '<div class="ag-sum" title="합의 기준 연장: 정규근무를 넘은 시간 중 고정 OT 안의 시간"><i class="sq f"></i>' + f(w.OTin) + '</div>' +
+      '<div class="ag-sum" title="실근로 합계 (휴일 제외)">' + f(w.W) + '</div>' +
+      (w.OTx ? '<div class="ag-over" title="고정 OT를 넘은 연장 — ×1.5 추가 보상"><i class="sq o"></i>고정 OT 초과 ' + f(w.OTx) + '</div>' : '') +
+      '<div class="ag-sum minor" title="시간대 기준 정상 09~18시 (휴일 제외)"><i class="dot a"></i>' + f(w.SA) + '</div>' +
+      '<div class="ag-sum minor" title="시간대 기준 연장 18:30~22시 (휴일 제외)"><i class="dot b"></i>' + f(w.SB) + '</div>' +
+      '<div class="ag-sum minor" title="시간대 기준 야간 22시 이후 (휴일 제외)"><i class="dot c"></i>' + f(w.SC) + '</div>' +
       (w.HA + w.HB + w.HC ? '<div class="ag-sum hol" title="휴일 정상 합계"><i class="dot a ring"></i>' + f(w.HA) + '</div>' +
         '<div class="ag-sum hol" title="휴일 연장 합계"><i class="dot b ring"></i>' + f(w.HB) + '</div>' +
         '<div class="ag-sum hol" title="휴일 야간 합계"><i class="dot c ring"></i>' + f(w.HC) + '</div>' : '') +
@@ -188,7 +192,7 @@
     const ag = st.agreement;
     let html = '<div class="row head"><div>주차</div>' +
       ['월', '화', '수', '목', '금', '토', '일'].map((k, i) => '<div class="' + (i === 6 ? 'h-sun' : i === 5 ? 'h-sat' : '') + '">' + k + '</div>').join('') +
-      '<div class="h-ag"><span><i class="dot a"></i>정규근무</span><span><i class="dot b"></i>연장근무</span><span>근로시간</span></div><div class="h-st">주별 정산</div></div>';
+      '<div class="h-ag"><span><i class="sq r"></i>정규근무</span><span><i class="sq f"></i>연장근무</span><span>근로시간</span></div><div class="h-st">주별 정산</div></div>';
 
     // 시작일이 월요일이 아니면 머리글 요일을 시작 요일 기준으로
     if (ag.start && H.dow(ag.start) !== 1) {

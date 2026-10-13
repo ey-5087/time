@@ -190,3 +190,18 @@ test('화면 버전과 CHANGELOG.md 최신 항목이 같다', () => {
   assert.equal(V.APP_VERSION, top);
   assert.match(V.APP_VERSION, /^\d+\.\d+\.\d+$/);
 });
+
+test('합의 기준 분류: 합의 정규까지는 정규, 넘은 부분만 연장', () => {
+  // 정규 52 합의, 실근로 59:30 → 정규 52, 연장 7:30, 고정 OT 초과 0
+  const st = weekState(52, [
+    ['2026-10-12', 8, 3, 1.5], ['2026-10-13', 8, 0, 0], ['2026-10-14', 8, 3, 2 + 1 / 3],
+    ['2026-10-15', 8, 3, 2 + 1 / 3], ['2026-10-16', 8, 3, 4 / 3]
+  ]);
+  const w = C.compute(st).weeks[0];
+  assert.equal(w.W, 59.5 * 60);
+  assert.equal(w.REG, 52 * 60);
+  assert.equal(w.OTin, 7.5 * 60);
+  assert.equal(w.OTx, 0);
+  const w2 = C.compute(weekState(32, [['2026-10-12', 8, 2, 0], ['2026-10-13', 8, 2, 0], ['2026-10-14', 8, 2, 0], ['2026-10-15', 8, 2, 0], ['2026-10-16', 8, 2, 0]])).weeks[0];
+  assert.deepEqual([w2.REG, w2.OTin, w2.OTx], [32 * 60, 12 * 60, 6 * 60]);
+});
