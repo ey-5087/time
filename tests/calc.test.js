@@ -182,3 +182,11 @@ test('v1 txt 해석', () => {
   assert.equal(r.records[0].out, 26 * 60 + 30);
   assert.equal(r.records[2].leave, '연차');
 });
+
+test('화면 버전과 CHANGELOG.md 최신 항목이 같다', () => {
+  const V = require('../js/version.js');
+  const md = require('fs').readFileSync(require('path').join(__dirname, '..', 'CHANGELOG.md'), 'utf8');
+  const top = /^## v(\d+\.\d+\.\d+)/m.exec(md)[1];
+  assert.equal(V.APP_VERSION, top);
+  assert.match(V.APP_VERSION, /^\d+\.\d+\.\d+$/);
+});

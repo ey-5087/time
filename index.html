@@ -9,7 +9,7 @@
 </head>
 <body>
 <header class="topbar">
-  <div class="brand">탄력근로 보상시간 정산 <span class="ver">v2</span></div>
+  <div class="brand">탄력근로 보상시간 정산 <button type="button" class="ver" id="btnVersion" title="변경 내역 보기">v2</button></div>
   <label class="profile" title="직원별 데이터는 이 브라우저에만 저장됩니다">
     <span class="lbl">프로필</span>
     <select id="profileSel"></select>
@@ -123,6 +123,14 @@
   </form>
 </dialog>
 
+<dialog id="verDlg" class="dlg">
+  <form method="dialog">
+    <h2>변경 내역</h2>
+    <div class="ver-list" id="verList"></div>
+    <div class="dlg-actions"><span class="spacer"></span><button value="close" class="btn primary">닫기</button></div>
+  </form>
+</dialog>
+
 <dialog id="holDlg" class="dlg">
   <form method="dialog">
     <h2>휴일 관리</h2>
@@ -166,6 +174,7 @@
 
 <div id="toasts" aria-live="polite"></div>
 
+<script src="js/version.js"></script>
 <script src="js/holidays.js"></script>
 <script src="js/calc.js"></script>
 <script src="js/xlsx-lite.js"></script>

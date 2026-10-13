@@ -70,7 +70,13 @@ button, input, select, textarea { font: inherit; color: inherit; }
   padding: 10px 20px; background: var(--surface); border-bottom: 1px solid var(--line);
 }
 .brand { font-weight: 700; font-size: 16px; white-space: nowrap; }
-.ver { font-size: 11px; color: var(--muted); font-weight: 600; margin-left: 2px; }
+.ver { font-size: 11px; color: var(--muted); font-weight: 600; margin-left: 4px; border: 1px solid var(--line-strong); background: var(--surface-2); border-radius: 10px; padding: 1px 7px; cursor: pointer; vertical-align: 2px; }
+.ver:hover { color: var(--accent); border-color: var(--accent); }
+.ver-list { max-height: 60vh; overflow: auto; display: flex; flex-direction: column; gap: 14px; }
+.ver-list h3 { margin: 0 0 4px; font-size: 14px; }
+.ver-list h3 small { color: var(--muted); font-weight: 400; margin-left: 6px; }
+.ver-list h3 .cur { font-size: 11px; color: var(--accent); border: 1px solid currentColor; border-radius: 8px; padding: 0 6px; margin-left: 6px; font-weight: 600; }
+.ver-list ul { margin: 0; padding-left: 18px; font-size: 13px; line-height: 1.6; }
 .profile { display: flex; align-items: center; gap: 6px; }
 .profile .lbl { color: var(--muted); font-size: 12px; }
 .actions { display: flex; align-items: center; gap: 8px; margin-left: auto; flex-wrap: wrap; }

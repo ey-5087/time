@@ -471,7 +471,7 @@
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   }
   function saveFile() {
-    const data = { app: 'flexcomp', version: 2, profile: store.current, savedAt: new Date().toISOString(), state: S() };
+    const data = { app: 'flexcomp', version: 2, appVersion: window.FC.version.APP_VERSION, profile: store.current, savedAt: new Date().toISOString(), state: S() };
     download('탄력근로정산_' + store.current + '_' + todayStr() + '.json', JSON.stringify(data, null, 2), 'application/json');
     toast('파일로 저장했습니다.');
   }
@@ -618,6 +618,12 @@
     $('btnDayDelete').onclick = () => { delete S().days[editDate]; $('dayDlg').close(); render(); };
     $('dayForm').addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.tagName === 'INPUT') { e.preventDefault(); saveDay(); } });
 
+    $('btnVersion').onclick = () => {
+      $('verList').innerHTML = window.FC.version.CHANGELOG.map((v, i) =>
+        '<section><h3>v' + esc(v.version) + (v.date ? '<small>' + esc(v.date) + '</small>' : '') + (i === 0 ? '<span class="cur">현재</span>' : '') + '</h3><ul>' +
+        v.items.map(t => '<li>' + esc(t) + '</li>').join('') + '</ul></section>').join('');
+      $('verDlg').showModal();
+    };
     $('btnHolidays').onclick = openHolidays;
     $('holYear').onchange = renderHolList;
     $('holList').addEventListener('change', e => {
@@ -660,6 +666,8 @@
   }
   function closeMenu() { const m = document.querySelector('.menu[open]'); if (m) m.open = false; }
 
+  $('btnVersion').textContent = 'v' + window.FC.version.APP_VERSION;
+  document.title = '탄력근로 보상시간 정산 v' + window.FC.version.APP_VERSION;
   load();
   bind();
   render();
