@@ -205,3 +205,21 @@ test('합의 기준 분류: 합의 정규까지는 정규, 넘은 부분만 연�
   const w2 = C.compute(weekState(32, [['2026-10-12', 8, 2, 0], ['2026-10-13', 8, 2, 0], ['2026-10-14', 8, 2, 0], ['2026-10-15', 8, 2, 0], ['2026-10-16', 8, 2, 0]])).weeks[0];
   assert.deepEqual([w2.REG, w2.OTin, w2.OTx], [32 * 60, 12 * 60, 6 * 60]);
 });
+
+test('산정 기준 창: plan-content.js가 기획서.md와 같다 (다르면 node tools/sync-plan.js)', () => {
+  const fs = require('fs'), path = require('path');
+  const built = require('../tools/sync-plan.js').build();
+  assert.equal(fs.readFileSync(path.join(__dirname, '..', 'js', 'plan-content.js'), 'utf8'), built);
+});
+
+test('기획서 마크다운 변환: 표·목록·코드·목차', () => {
+  const M = require('../js/markdown.js');
+  const r = M.render('# 제목\n\n## 1. 가\n\n| a | b |\n|---|---|\n| `x|y` | **굵게** |\n\n- 하나\n  - 둘\n\n```\n<코드>\n```\n### 1.1 나\n본문 [링크](https://example.com)');
+  assert.match(r.html, /<td><code>x\|y<\/code><\/td><td><strong>굵게<\/strong><\/td>/);
+  assert.match(r.html, /<li>하나<ul><li>둘<\/li><\/ul><\/li>/);
+  assert.match(r.html, /&lt;코드&gt;/);
+  assert.deepEqual(r.toc.map(t => t.level), [2, 3]);
+  const real = M.render(require('../js/plan-content.js'));
+  assert.ok(real.toc.length > 20);
+  assert.ok(!/<script/i.test(real.html));
+});

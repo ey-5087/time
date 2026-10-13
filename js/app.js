@@ -524,6 +524,25 @@
     download('정산결과_' + store.current + '_' + todayStr() + '.csv', '﻿' + rows.map(x => x.join(',')).join('\r\n'), 'text/csv');
   }
 
+  /* ===================== 산정 기준 (기획서) ===================== */
+  let planRendered = false;
+  function openPlan() {
+    if (!planRendered) {
+      const r = window.FC.markdown.render(window.FC.planMarkdown || '기획서를 불러오지 못했습니다.');
+      $('planMd').innerHTML = r.html;
+      $('planToc').innerHTML = r.toc.map(t => '<a href="#' + t.id + '" data-id="' + t.id + '" class="l' + t.level + '">' + esc(t.text) + '</a>').join('');
+      $('planJump').innerHTML = '<option value="">목차</option>' + r.toc.map(t => '<option value="' + t.id + '">' + (t.level === 3 ? '　' : '') + esc(t.text) + '</option>').join('');
+      planRendered = true;
+    }
+    $('planDlg').showModal();
+    $('planMd').scrollTop = 0;
+  }
+  function jumpPlan(id) {
+    const el = id && document.getElementById(id);
+    if (el) $('planMd').scrollTo({ top: el.offsetTop - $('planMd').offsetTop - 4, behavior: 'smooth' });
+    $('planJump').value = '';
+  }
+
   /* ===================== 휴일 관리 ===================== */
   function openHolidays() {
     const st = S();
@@ -633,6 +652,10 @@
         v.items.map(t => '<li>' + esc(t) + '</li>').join('') + '</ul></section>').join('');
       $('verDlg').showModal();
     };
+    $('btnPlan').onclick = openPlan;
+    $('btnPlanClose').onclick = () => $('planDlg').close();
+    $('planToc').addEventListener('click', e => { const a = e.target.closest('a[data-id]'); if (!a) return; e.preventDefault(); jumpPlan(a.dataset.id); });
+    $('planJump').onchange = e => jumpPlan(e.target.value);
     $('btnHolidays').onclick = openHolidays;
     $('holYear').onchange = renderHolList;
     $('holList').addEventListener('change', e => {

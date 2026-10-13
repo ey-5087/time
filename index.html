@@ -17,6 +17,7 @@
   <div class="actions">
     <button class="btn primary" id="btnImport" title="근태 엑셀(.xlsx) 여러 개, CSV, v1 txt">근무 기록 올리기</button>
     <input type="file" id="fileImport" multiple accept=".xlsx,.xlsm,.csv,.txt" hidden>
+    <button class="btn" id="btnPlan" title="계산 기준과 법적 근거 (기획서)">산정 기준</button>
     <button class="btn" id="btnHolidays">휴일 관리</button>
     <div class="seg" role="group" aria-label="시간 표시 형식">
       <button class="seg-btn" data-fmt="hm">H:MM</button><button class="seg-btn" data-fmt="dec">소수</button>
@@ -128,6 +129,18 @@
   </form>
 </dialog>
 
+<dialog id="planDlg" class="dlg plan" aria-labelledby="planTitle">
+  <div class="plan-head">
+    <h2 id="planTitle">산정 기준 <small>기획서</small></h2>
+    <select id="planJump" aria-label="목차로 이동"></select>
+    <button type="button" class="btn" id="btnPlanClose">닫기</button>
+  </div>
+  <div class="plan-body">
+    <nav class="plan-toc" id="planToc" aria-label="목차"></nav>
+    <article class="plan-md" id="planMd"></article>
+  </div>
+</dialog>
+
 <dialog id="verDlg" class="dlg">
   <form method="dialog">
     <h2>변경 내역</h2>
@@ -180,6 +193,8 @@
 <div id="toasts" aria-live="polite"></div>
 
 <script src="js/version.js"></script>
+<script src="js/markdown.js"></script>
+<script src="js/plan-content.js"></script>
 <script src="js/holidays.js"></script>
 <script src="js/calc.js"></script>
 <script src="js/xlsx-lite.js"></script>
