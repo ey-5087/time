@@ -17,6 +17,7 @@
   <div class="actions">
     <button class="btn primary" id="btnImport" title="근태 엑셀(.xlsx) 여러 개, CSV, v1 txt">근무 기록 올리기</button>
     <input type="file" id="fileImport" multiple accept=".xlsx,.xlsm,.csv,.txt" hidden>
+    <button class="btn" id="btnPlan" title="계산 기준과 법적 근거 (기획서)">산정 기준</button>
     <button class="btn" id="btnHolidays">휴일 관리</button>
     <div class="seg" role="group" aria-label="시간 표시 형식">
       <button class="seg-btn" data-fmt="hm">H:MM</button><button class="seg-btn" data-fmt="dec">소수</button>
@@ -50,7 +51,7 @@
       <div class="part"><span class="part-k"><i class="dot ot"></i>연장 초과 ×1.5</span><b id="sumOt">0:00</b><small id="sumOtRaw"></small></div>
       <div class="part"><span class="part-k"><i class="dot hol"></i>휴일근로</span><b id="sumHol">0:00</b><small id="sumHolRaw"></small></div>
       <div class="part"><span class="part-k"><i class="dot night"></i>야간가산 ×0.5</span><b id="sumNight">0:00</b><small id="sumNightRaw"></small></div>
-      <div class="part"><span class="part-k"><i class="dot late"></i>지각 공제</span><b id="sumLate">0:00</b><small>1.0배 차감</small></div>
+      <div class="part"><span class="part-k"><i class="dot late"></i>지각 합계</span><b id="sumLate">0:00</b><small>별도 표기 · 추후 공제 (위 보상시간에 미반영)</small></div>
     </div>
     <div class="notices" id="notices"></div>
   </section>
@@ -86,7 +87,7 @@
     <span><i class="sw sw-hol"></i>휴일</span>
     <span><i class="sw sw-off"></i>휴무일</span>
     <span><i class="sw sw-auto"></i>출퇴근으로 자동 계산</span>
-    <span><i class="sw sw-man"></i>직접 수정</span>
+    <span><i class="sw sw-man"></i>직접 수정·토요일 승인</span>
     <span class="legend-note">날짜 칸을 누르면 수정할 수 있습니다. 24시 이후는 26:00(새벽 2시)처럼 표기합니다.</span>
   </section>
 </main>
@@ -105,6 +106,7 @@
           <option value="오전반차">오전 반차 (4시간 간주)</option>
           <option value="오후반차">오후 반차 (4시간 간주)</option>
           <option value="결근">결근</option>
+          <option value="탄력조정">탄력 조정일 (근무 간주, 계산 0)</option>
         </select>
       </label>
     </div>
@@ -126,6 +128,18 @@
       <button type="button" class="btn primary" id="btnDaySave">저장</button>
     </div>
   </form>
+</dialog>
+
+<dialog id="planDlg" class="dlg plan" aria-labelledby="planTitle">
+  <div class="plan-head">
+    <h2 id="planTitle">산정 기준 <small>기획서</small></h2>
+    <select id="planJump" aria-label="목차로 이동"></select>
+    <button type="button" class="btn" id="btnPlanClose">닫기</button>
+  </div>
+  <div class="plan-body">
+    <nav class="plan-toc" id="planToc" aria-label="목차"></nav>
+    <article class="plan-md" id="planMd"></article>
+  </div>
 </dialog>
 
 <dialog id="verDlg" class="dlg">
@@ -180,6 +194,8 @@
 <div id="toasts" aria-live="polite"></div>
 
 <script src="js/version.js"></script>
+<script src="js/markdown.js"></script>
+<script src="js/plan-content.js"></script>
 <script src="js/holidays.js"></script>
 <script src="js/calc.js"></script>
 <script src="js/xlsx-lite.js"></script>

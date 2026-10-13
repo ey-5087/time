@@ -122,9 +122,11 @@ test('합의 32시간 주에 50시간: 연장 18h → 고정 OT 초과 6h × 1.5
   assert.equal(w.comp, 9 * 60);
 });
 
-test('지각은 1.0배 공제, 음수도 그대로', () => {
+test('지각은 공제하지 않고 따로 집계', () => {
   const st = weekState(40, [['2026-10-12', 8, 0, 0, 1.5]]);
-  assert.equal(C.compute(st).weeks[0].comp, -90);
+  const w = C.compute(st).weeks[0];
+  assert.equal(w.comp, 0);
+  assert.equal(w.L, 90);
 });
 
 test('휴일근로는 연장가산과 중복하지 않음 (8h 이내 1.5, 초과 2.0)', () => {
@@ -204,4 +206,50 @@ test('합의 기준 분류: 합의 정규까지는 정규, 넘은 부분만 연�
   assert.equal(w.OTx, 0);
   const w2 = C.compute(weekState(32, [['2026-10-12', 8, 2, 0], ['2026-10-13', 8, 2, 0], ['2026-10-14', 8, 2, 0], ['2026-10-15', 8, 2, 0], ['2026-10-16', 8, 2, 0]])).weeks[0];
   assert.deepEqual([w2.REG, w2.OTin, w2.OTx], [32 * 60, 12 * 60, 6 * 60]);
+});
+
+test('산정 기준 창: plan-content.js가 기획서.md와 같다 (다르면 node tools/sync-plan.js)', () => {
+  const fs = require('fs'), path = require('path');
+  const built = require('../tools/sync-plan.js').build();
+  assert.equal(fs.readFileSync(path.join(__dirname, '..', 'js', 'plan-content.js'), 'utf8'), built);
+});
+
+test('기획서 마크다운 변환: 표·목록·코드·목차', () => {
+  const M = require('../js/markdown.js');
+  const r = M.render('# 제목\n\n## 1. 가\n\n| a | b |\n|---|---|\n| `x|y` | **굵게** |\n\n- 하나\n  - 둘\n\n```\n<코드>\n```\n### 1.1 나\n본문 [링크](https://example.com)');
+  assert.match(r.html, /<td><code>x\|y<\/code><\/td><td><strong>굵게<\/strong><\/td>/);
+  assert.match(r.html, /<li>하나<ul><li>둘<\/li><\/ul><\/li>/);
+  assert.match(r.html, /&lt;코드&gt;/);
+  assert.deepEqual(r.toc.map(t => t.level), [2, 3]);
+  const real = M.render(require('../js/plan-content.js'));
+  assert.ok(real.toc.length > 20);
+  const md = require('../js/plan-content.js');
+  assert.match(md, /^## 10\. /m);
+  assert.doesNotMatch(md, /^## 1[1-6]\. /m);
+  assert.ok(!/<script/i.test(real.html));
+});
+
+test('탄력 조정일: 근태 엑셀에 정상 8:00이 있어도 계산 0', () => {
+  const rec = { in: 532, out: 1116, status: '정상', leave: '탄력조정', excel: { normal: 480, ext: null, night: null, late: null } };
+  const e = C.effectiveDay(rec, 'workday');
+  assert.equal(e.src, 'adjust');
+  assert.equal(e.total, 0);
+  const st = { agreement: { type: '3m', start: '2026-02-09', weeks: [{ regular: 8, fixedOT: 12, written: '' }] }, days: {
+    '2026-02-09': { excel: { normal: 480 } },
+    '2026-02-10': Object.assign({}, rec),
+    '2026-02-13': { in: 540, out: 1080, leave: '탄력조정', excel: { normal: 480 } }
+  } };
+  const w = C.compute(st).weeks[0];
+  assert.equal(w.W, 480);
+  assert.equal(w.comp, 0);
+});
+
+test('토요일 근무는 승인 시간 입력 전까지 승인 필요 표시, 입력하면 그 값으로 계산', () => {
+  const rec = { in: 845, out: 1462, excel: { normal: 420, ext: null, night: 140 } };
+  assert.equal(C.effectiveDay(rec, 'offday').needsApproval, true);
+  assert.equal(C.effectiveDay(rec, 'workday').needsApproval, false);
+  rec.manual = { normal: 300, ext: 80, night: 140, late: 0 };
+  const e = C.effectiveDay(rec, 'offday');
+  assert.equal(e.needsApproval, false);
+  assert.equal(e.total, 520);
 });
