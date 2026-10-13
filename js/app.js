@@ -87,7 +87,7 @@
     $('sumOt').textContent = f(t.otPay);
     $('sumOtRaw').textContent = '고정 OT 초과 ' + f(t.OTx) + ' (연장 ' + f(t.OT) + ')';
     $('sumHol').textContent = f(t.holPay);
-    $('sumHolRaw').textContent = '8h 이내 ' + f(t.H1) + ' · 초과 ' + f(t.H2);
+    $('sumHolRaw').textContent = f(t.H1) + ' ×1.5 + ' + f(t.H2) + ' ×2.0';
     $('sumNight').textContent = f(t.nightPay);
     $('sumNightRaw').textContent = '야간 ' + f(t.N);
     $('sumLate').textContent = t.L ? '−' + f(t.L) : f(0);
@@ -181,7 +181,8 @@
       '<i class="mark" style="left:' + pct(lim) + '"></i></div>' +
       '<div class="st-grid">' +
       '<span>연장 ' + f(w.OT) + ' → 고정 OT 초과 ' + f(w.OTx) + ' ×1.5</span>' + v(w.otPay) +
-      '<span>휴일 ' + f(w.H1 + w.H2) + (w.H2 ? ' (8h 초과 ' + f(w.H2) + ')' : '') + '</span>' + v(w.holPay) +
+      '<span>휴일 8h 이내 ' + f(w.H1) + ' ×1.5</span>' + v(w.H1 * 1.5) +
+      '<span>휴일 8h 초과 ' + f(w.H2) + ' ×2.0</span>' + v(w.H2 * 2.0) +
       '<span>야간 ' + f(w.N) + ' ×0.5</span>' + v(w.nightPay) +
       '<span>지각</span>' + v(w.L, true) +
       '</div>' +
