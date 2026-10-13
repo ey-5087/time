@@ -162,7 +162,7 @@ main { padding: 16px 20px 40px; max-width: 1560px; margin: 0 auto; }
 }
 .row.head > div { padding: 8px 6px; text-align: center; }
 .row.head .h-sun { color: var(--hol); } .row.head .h-sat { color: var(--off); }
-.row.head .h-ag { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; font-size: 11.5px; white-space: nowrap; }
+.row.head .h-ag { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; font-size: 11px; white-space: nowrap; padding-left: 4px; padding-right: 4px; }
 .wk {
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
   font-weight: 700; border-right: 1px solid var(--line); padding: 6px 2px;
@@ -276,6 +276,25 @@ main { padding: 16px 20px 40px; max-width: 1560px; margin: 0 auto; }
 .hol-list li.off .hn { text-decoration: line-through; color: var(--muted); }
 .hol-add { display: flex; gap: 6px; flex-wrap: wrap; }
 .hol-add input[type="text"] { flex: 1; min-width: 140px; }
+
+.dlg.wide { width: min(720px, calc(100vw - 32px)); }
+.ag-dlg-top { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.ag-dlg-top label { flex-direction: row; align-items: center; gap: 8px; }
+.ag-dlg-range { color: var(--muted); font-size: 12.5px; }
+.ag-table-wrap { max-height: 52vh; overflow: auto; border: 1px solid var(--line); border-radius: 10px; }
+.ag-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.ag-table th, .ag-table td { border-bottom: 1px solid var(--line); padding: 6px 8px; text-align: center; }
+.ag-table thead th { position: sticky; top: 0; background: var(--surface-2); color: var(--muted); font-size: 12px; font-weight: 600; z-index: 1; }
+.ag-table thead th small { font-weight: 400; margin-left: 2px; }
+.ag-table tbody th { font-weight: 700; white-space: nowrap; background: var(--surface-2); }
+.ag-table td.per { color: var(--muted); font-size: 12px; white-space: nowrap; }
+.ag-table input { width: 72px; text-align: center; }
+.ag-table input.bad { border-color: var(--warn-ink); background: var(--warn-bg); }
+.ag-table td.base { font-weight: 600; white-space: nowrap; }
+.ag-table td.base.bad { color: var(--warn-ink); }
+.ag-table tfoot td, .ag-table tfoot th { background: var(--surface-2); font-weight: 700; border-bottom: 0; }
+.ag-table tfoot .avg { color: var(--muted); font-weight: 500; font-size: 12px; }
+.ag-table tfoot .over { color: var(--hol); }
 
 #toasts { position: fixed; bottom: 18px; right: 18px; z-index: 100; display: flex; flex-direction: column; gap: 8px; }
 .toast { background: var(--ink); color: var(--bg); padding: 10px 14px; border-radius: 9px; font-size: 13px; max-width: 380px; box-shadow: var(--shadow); opacity: 0; transform: translateY(6px); transition: .25s; }

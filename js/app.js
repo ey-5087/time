@@ -181,7 +181,7 @@
     const ag = st.agreement;
     let html = '<div class="row head"><div>주차</div>' +
       ['월', '화', '수', '목', '금', '토', '일'].map((k, i) => '<div class="' + (i === 6 ? 'h-sun' : i === 5 ? 'h-sat' : '') + '">' + k + '</div>').join('') +
-      '<div class="h-ag"><span>정규</span><span>연장</span><span>근로시간</span></div><div class="h-st">주별 정산</div></div>';
+      '<div class="h-ag"><span>정규근무</span><span>연장근무</span><span>근로시간</span></div><div class="h-st">주별 정산</div></div>';
 
     // 시작일이 월요일이 아니면 머리글 요일을 시작 요일 기준으로
     if (ag.start && H.dow(ag.start) !== 1) {
@@ -243,21 +243,93 @@
     render();
   }
 
-  function applyPaste(text) {
-    const lines = text.split(/\r?\n/).map(l => l.replace(/\d+\s*주\s*차?/, ' ').trim()).filter(Boolean);
-    const weeks = [];
-    lines.forEach(l => {
-      const nums = (l.match(/-?\d+(?:\.\d+)?/g) || []).map(Number);
-      if (!nums.length) return;
-      weeks.push({ regular: nums[0], fixedOT: nums.length > 1 ? nums[1] : 12, written: nums.length > 2 ? nums[2] : '' });
-    });
-    if (!weeks.length) { toast('숫자를 찾지 못했습니다.', 'error'); return false; }
+  /* 합의서 표 입력 대화상자: 확인 전까지 draft에서만 고침 */
+  let agDraft = null;
+  function openAgDialog() {
     const ag = S().agreement;
-    ag.weeks = weeks;
+    agDraft = { start: ag.start, weeks: ag.weeks.map(w => Object.assign({}, w)) };
+    $('agDlgStart').value = agDraft.start || '';
+    renderAgTable();
+    $('agDlg').showModal();
+    const first = $('agRows').querySelector('input');
+    if (first) first.focus();
+  }
+  function num(v) { return v === '' || v === null || v === undefined ? '' : Number(v); }
+  function renderAgTable() {
+    const d = agDraft;
+    const n = d.weeks.length;
+    $('agDlgRange').textContent = d.start ? d.start + ' ~ ' + H.addDays(d.start, n * 7 - 1) + ' · ' + n + '주 (' + n * 7 + '일)' : '시작일을 입력하세요';
+    $('agRows').innerHTML = d.weeks.map((w, i) => {
+      const sum = (Number(w.regular) || 0) + (Number(w.fixedOT) || 0);
+      const bad = w.written !== '' && w.written !== null && w.written !== undefined && Number(w.written) !== sum;
+      const per = d.start ? md(H.addDays(d.start, i * 7)) + ' ~ ' + md(H.addDays(d.start, i * 7 + 6)) : '';
+      const cell = (k, cls) => '<td><input type="number" min="0" step="1" data-r="' + i + '" data-c="' + k + '" value="' + esc(w[k]) + '"' +
+        (k === 'written' ? ' placeholder="' + sum + '"' : '') + (cls ? ' class="' + cls + '"' : '') +
+        ' aria-label="' + (i + 1) + '주차 ' + { regular: '정규근무', fixedOT: '연장근무', written: '근로시간' }[k] + '"></td>';
+      return '<tr><th scope="row">' + (i + 1) + '주차</th><td class="per">' + per + '</td>' +
+        cell('regular') + cell('fixedOT') + cell('written', bad ? 'bad' : '') +
+        '<td class="base' + (bad ? ' bad' : '') + '">' + sum + 'h' + (bad ? ' ⚠' : '') + '</td></tr>';
+    }).join('');
+    const tot = k => d.weeks.reduce((a, w) => a + (Number(w[k]) || 0), 0);
+    const reg = tot('regular'), ot = tot('fixedOT');
+    const avg = n ? reg / n : 0;
+    $('agFoot').innerHTML = '<tr><th scope="row">합계</th><td class="avg">정규 평균 <span class="' + (avg > 40 ? 'over' : '') + '">' + avg.toFixed(1) + 'h</span></td>' +
+      '<td>' + reg + '</td><td>' + ot + '</td><td>' + d.weeks.reduce((a, w) => a + (w.written === '' ? 0 : Number(w.written) || 0), 0) + '</td><td>' + (reg + ot) + 'h</td></tr>';
+  }
+  const AG_COLS = ['regular', 'fixedOT', 'written'];
+  function agInput(e) {
+    const inp = e.target.closest('input[data-r]');
+    if (!inp) return;
+    agDraft.weeks[Number(inp.dataset.r)][inp.dataset.c] = num(inp.value);
+    // 다시 그리면 입력 중 포커스를 잃으므로 해당 행의 기준·합계만 갱신
+    const r = Number(inp.dataset.r), w = agDraft.weeks[r];
+    const sum = (Number(w.regular) || 0) + (Number(w.fixedOT) || 0);
+    const bad = w.written !== '' && Number(w.written) !== sum;
+    const tr = inp.closest('tr');
+    tr.querySelector('input[data-c="written"]').classList.toggle('bad', bad);
+    tr.querySelector('input[data-c="written"]').placeholder = sum;
+    const base = tr.querySelector('.base');
+    base.className = 'base' + (bad ? ' bad' : '');
+    base.textContent = sum + 'h' + (bad ? ' ⚠' : '');
+    const tot = k => agDraft.weeks.reduce((a, x) => a + (Number(x[k]) || 0), 0);
+    const reg = tot('regular'), ot = tot('fixedOT'), avg = reg / agDraft.weeks.length;
+    $('agFoot').innerHTML = '<tr><th scope="row">합계</th><td class="avg">정규 평균 <span class="' + (avg > 40 ? 'over' : '') + '">' + avg.toFixed(1) + 'h</span></td>' +
+      '<td>' + reg + '</td><td>' + ot + '</td><td>' + tot('written') + '</td><td>' + (reg + ot) + 'h</td></tr>';
+  }
+  // 여러 칸 붙여넣기: 커서가 있는 칸부터 오른쪽·아래로 채움
+  function agPaste(e) {
+    const inp = e.target.closest('input[data-r]');
+    if (!inp) return;
+    const text = (e.clipboardData || window.clipboardData).getData('text');
+    if (!/[\t\n]/.test(text.trim())) return; // 한 칸 값은 기본 동작
+    e.preventDefault();
+    const lines = text.replace(/\r/g, '').split('\n').filter(l => l.trim());
+    const r0 = Number(inp.dataset.r), c0 = AG_COLS.indexOf(inp.dataset.c);
+    let last = -1;
+    lines.forEach((line, li) => {
+      const vals = line.split(/\t|\s{2,}/).map(v => v.trim()).filter(v => v !== '' && !/주\s*차?$|^구분$/.test(v))
+        .map(v => (/^-?\d+(\.\d+)?$/.test(v) ? Number(v) : null)).filter(v => v !== null);
+      if (!vals.length) return;
+      const r = r0 + li;
+      while (agDraft.weeks.length <= r && agDraft.weeks.length < 27) agDraft.weeks.push({ regular: 40, fixedOT: 12, written: '' });
+      if (r >= agDraft.weeks.length) return;
+      vals.forEach((v, k) => { const c = c0 + k; if (c < AG_COLS.length) agDraft.weeks[r][AG_COLS[c]] = v; });
+      last = r;
+    });
+    // 첫 주부터 붙여넣으면 합의서 전체로 보고 주 수를 붙여넣은 줄 수에 맞춤
+    if (r0 === 0 && last >= 0) agDraft.weeks.length = last + 1;
+    renderAgTable();
+    toast(lines.length + '줄을 붙여넣었습니다.');
+  }
+  function applyAgDialog() {
+    if (!agDraft.weeks.length) { toast('최소 1주가 필요합니다.', 'error'); return; }
+    const ag = S().agreement;
+    if ($('agDlgStart').value) ag.start = $('agDlgStart').value;
+    ag.weeks = agDraft.weeks.map(w => ({ regular: w.regular === '' ? 0 : w.regular, fixedOT: w.fixedOT === '' ? 12 : w.fixedOT, written: w.written }));
     ag.isDefault = false;
+    $('agDlg').close();
     render();
-    toast(weeks.length + '주 합의서 값을 넣었습니다.');
-    return true;
+    toast(ag.weeks.length + '주 합의서 값을 적용했습니다.');
   }
 
   /* ===================== 날짜 편집 ===================== */
@@ -505,8 +577,20 @@
     document.querySelectorAll('.seg-btn').forEach(b => { b.onclick = () => { store.fmt = b.dataset.fmt; render(); }; });
 
     ['agType', 'agStart', 'agWeeks'].forEach(id => { $(id).onchange = onAgreementChange; });
-    $('btnPaste').onclick = () => { $('pasteText').value = ''; $('pasteDlg').showModal(); };
-    $('btnPasteApply').onclick = () => { if (applyPaste($('pasteText').value)) $('pasteDlg').close(); };
+    $('btnAgEdit').onclick = openAgDialog;
+    $('agRows').addEventListener('input', agInput);
+    $('agRows').addEventListener('paste', agPaste);
+    $('agRows').addEventListener('keydown', e => { // Enter: 아래 칸으로
+      const inp = e.target.closest('input[data-r]');
+      if (!inp || e.key !== 'Enter') return;
+      e.preventDefault();
+      const next = $('agRows').querySelector('input[data-r="' + (Number(inp.dataset.r) + 1) + '"][data-c="' + inp.dataset.c + '"]');
+      if (next) next.focus(); else $('btnAgApply').focus();
+    });
+    $('agDlgStart').onchange = () => { agDraft.start = $('agDlgStart').value; renderAgTable(); };
+    $('btnAgAdd').onclick = () => { if (agDraft.weeks.length < 27) { agDraft.weeks.push({ regular: 40, fixedOT: 12, written: '' }); renderAgTable(); } };
+    $('btnAgRemove').onclick = () => { if (agDraft.weeks.length > 1) { agDraft.weeks.pop(); renderAgTable(); } };
+    $('btnAgApply').onclick = applyAgDialog;
 
     $('board').addEventListener('click', e => {
       const day = e.target.closest('.day');

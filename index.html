@@ -67,8 +67,8 @@
     <label>시작일 <input type="date" id="agStart"></label>
     <label>주 수 <input type="number" id="agWeeks" min="1" max="27" step="1"></label>
     <span class="ag-end" id="agEnd"></span>
-    <button class="btn small" id="btnPaste">합의서 표 붙여넣기</button>
-    <span class="ag-hint">오른쪽 <b>정규·연장·근로시간</b> 칸에 합의서 표 값을 그대로 입력하세요.</span>
+    <button class="btn small primary" id="btnAgEdit">합의서 표 입력</button>
+    <span class="ag-hint">주차별 정규근무·연장근무·근로시간은 <b>합의서 표 입력</b>에서 넣거나, 아래 표 오른쪽 칸에서 바로 고칠 수 있습니다.</span>
   </section>
 
   <section class="board" id="board" aria-label="주간 정산표"></section>
@@ -136,12 +136,30 @@
   </form>
 </dialog>
 
-<dialog id="pasteDlg" class="dlg">
+<dialog id="agDlg" class="dlg wide">
   <form method="dialog">
-    <h2>합의서 표 붙여넣기</h2>
-    <p class="dlg-sub">합의서 표에서 주차별 <b>정규근무 · 연장근무 · 근로시간</b> 세 칸을 복사해 붙여넣으세요. 한 줄이 한 주입니다.</p>
-    <textarea id="pasteText" rows="8" placeholder="32	12	44&#10;52	12	64&#10;40	12	52&#10;52	12	64&#10;24	12	36"></textarea>
-    <div class="dlg-actions"><span class="spacer"></span><button value="cancel" class="btn">취소</button><button type="button" class="btn primary" id="btnPasteApply">적용</button></div>
+    <h2>합의서 표 입력</h2>
+    <p class="dlg-sub">합의서 표 오른쪽의 <b>정규근무 · 연장근무 · 근로시간</b>을 주차별로 입력하세요. 엑셀·한글 표에서 여러 칸을 복사해 첫 칸에 붙여넣으면 한 번에 채워집니다.</p>
+    <div class="ag-dlg-top">
+      <label>시작일 <input type="date" id="agDlgStart"></label>
+      <span class="ag-dlg-range" id="agDlgRange"></span>
+    </div>
+    <div class="ag-table-wrap">
+      <table class="ag-table">
+        <thead>
+          <tr><th scope="col">주차</th><th scope="col">기간</th><th scope="col">정규근무<small>(h)</small></th><th scope="col">연장근무<small>(h)</small></th><th scope="col">근로시간<small>(h)</small></th><th scope="col">계산 기준</th></tr>
+        </thead>
+        <tbody id="agRows"></tbody>
+        <tfoot id="agFoot"></tfoot>
+      </table>
+    </div>
+    <div class="dlg-actions">
+      <button type="button" class="btn small" id="btnAgAdd">+ 주 추가</button>
+      <button type="button" class="btn small ghost" id="btnAgRemove">마지막 주 삭제</button>
+      <span class="spacer"></span>
+      <button value="cancel" class="btn">취소</button>
+      <button type="button" class="btn primary" id="btnAgApply">적용</button>
+    </div>
   </form>
 </dialog>
 
