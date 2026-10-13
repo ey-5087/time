@@ -221,5 +221,8 @@ test('기획서 마크다운 변환: 표·목록·코드·목차', () => {
   assert.deepEqual(r.toc.map(t => t.level), [2, 3]);
   const real = M.render(require('../js/plan-content.js'));
   assert.ok(real.toc.length > 20);
+  const md = require('../js/plan-content.js');
+  assert.match(md, /^## 10\. /m);
+  assert.doesNotMatch(md, /^## 1[1-6]\. /m);
   assert.ok(!/<script/i.test(real.html));
 });
