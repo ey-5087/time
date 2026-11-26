@@ -1,7 +1,7 @@
 /* 화면 동작 — 한 페이지 대시보드 */
 (function () {
   'use strict';
-  const C = window.FC.calc, H = window.FC.holidays, IO = window.FC.io;
+  const C = window.FC.calc, H = window.FC.holidays, IO = window.FC.io, PJ = window.FC.projects;
   const STORE_KEY = 'flexcomp.v2';
   const DOW = ['일', '월', '화', '수', '목', '금', '토'];
   const $ = id => document.getElementById(id);
@@ -17,18 +17,23 @@
     };
   }
 
+  // store.profiles[이름] = { work: 작업 중 상태(자동 보관), project: 열려 있는 프로젝트 이름|null, input: 프로젝트 이름 칸 }
   let store = { current: '기본', profiles: {}, fmt: 'hm' };
+  const newProfile = work => ({ work: work || newState(), project: null, input: '' });
   function load() {
     try {
       const raw = localStorage.getItem(STORE_KEY);
       if (raw) store = Object.assign(store, JSON.parse(raw));
     } catch (e) { /* 저장소 사용 불가: 메모리로만 동작 */ }
-    if (!store.profiles[store.current]) store.profiles[store.current] = newState();
+    // 이전 형식(프로필 = 상태)을 새 형식으로 옮김
+    Object.keys(store.profiles).forEach(n => { const p = store.profiles[n]; if (p && p.agreement) store.profiles[n] = newProfile(p); });
+    if (!store.profiles[store.current]) store.profiles[store.current] = newProfile();
   }
   function persist() {
     try { localStorage.setItem(STORE_KEY, JSON.stringify(store)); } catch (e) { /* 무시 */ }
   }
-  const S = () => store.profiles[store.current];
+  const P = () => store.profiles[store.current];
+  const S = () => P().work;
 
   /* ===================== 표시 형식 ===================== */
   const f = min => store.fmt === 'dec' ? C.fmtDec(min) : C.fmtHM(min);
@@ -57,6 +62,7 @@
     const res = C.compute(st);
     lastResult = res;
     renderProfiles();
+    renderProjectBar();
     renderAgreementBar(st);
     renderSummary(st, res);
     renderBoard(st, res);
@@ -427,15 +433,15 @@
     if (name && name !== store.current) {
       const cur = S();
       const empty = !Object.keys(cur.days).length;
-      if (store.current === '기본' && empty && !store.profiles[name]) {
-        store.profiles[name] = cur; delete store.profiles['기본']; store.current = name;
+      if (store.current === '기본' && empty && !store.profiles[name] && !PJ.list('기본').length) {
+        store.profiles[name] = P(); delete store.profiles['기본']; store.current = name;
       } else if (confirm('파일의 성명 "' + name + '"이(가) 현재 프로필 "' + store.current + '"과 다릅니다.\n"' + name + '" 프로필로 전환(없으면 새로 만듦)할까요?\n\n[취소]를 누르면 현재 프로필에 넣습니다.')) {
         if (!store.profiles[name]) {
           const ns = newState();
           ns.agreement = JSON.parse(JSON.stringify(cur.agreement));
           ns.customHolidays = JSON.parse(JSON.stringify(cur.customHolidays));
           ns.removedHolidays = cur.removedHolidays.slice();
-          store.profiles[name] = ns;
+          store.profiles[name] = newProfile(ns);
         }
         store.current = name;
       }
@@ -487,17 +493,21 @@
     setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
   }
   function saveFile() {
-    const data = { app: 'flexcomp', version: 2, appVersion: window.FC.version.APP_VERSION, profile: store.current, savedAt: new Date().toISOString(), state: S() };
+    const proj = (P().input || P().project || '').trim();
+    const data = { app: 'flexcomp', version: 2, appVersion: window.FC.version.APP_VERSION, profile: store.current, project: proj || null, savedAt: new Date().toISOString(), state: S() };
     // 파일명은 탄력근로 시작일 기준 (시작일이 없으면 오늘 날짜)
-    download('탄력근로정산_' + store.current + '_' + (S().agreement.start || todayStr()) + '.json', JSON.stringify(data, null, 2), 'application/json');
+    download('탄력근로정산_' + safeName(proj || store.current) + '_' + (S().agreement.start || todayStr()) + '.json', JSON.stringify(data, null, 2), 'application/json');
     toast('파일로 저장했습니다.');
   }
-  function loadFile(text) {
+  async function loadFile(text, fileName) {
     let data;
     try { data = JSON.parse(text); } catch (e) { toast('JSON 형식이 아닙니다.', 'error'); return; }
+    if (data.app === 'flexcomp' && data.kind === 'backup') { await restoreBackup(data); return; }
     let state, name;
     if (data.app === 'flexcomp' && data.state) {
-      state = data.state; name = data.profile || '불러온 데이터';
+      state = data.state;
+      // 프로젝트 이름: 파일에 있으면 그대로, 없으면(이전 파일) 파일 이름에서
+      name = data.project || (fileName ? fileName.replace(/\.[^.]+$/, '').replace(/^탄력근로정산_/, '') : '') || '불러온 데이터';
     } else if (Array.isArray(data.schedule)) { // v1 파일
       state = newState(); name = 'v1 데이터';
       state.agreement.start = data.startDate;
@@ -512,11 +522,13 @@
       if (data.sourceName) name = data.sourceName.replace(/\.[^.]+$/, '');
       state.agreement.isDefault = false;
     } else { toast('알 수 없는 파일 형식입니다.', 'error'); return; }
-    if (store.profiles[name] && !confirm('"' + name + '" 프로필을 파일 내용으로 덮어쓸까요?')) return;
-    store.profiles[name] = Object.assign(newState(), state);
-    store.current = name;
+    if (isDirty() && !confirm('지금 작업 중인 내용에 저장하지 않은 변경이 있습니다.\n불러온 파일 내용으로 바꿀까요?')) return;
+    const p = P();
+    p.work = Object.assign(newState(), state);
+    p.project = null;
+    p.input = name;
     render();
-    toast('"' + name + '" 데이터를 불러왔습니다.');
+    toast('"' + name + '" 파일을 불러왔습니다. 프로젝트 이름을 확인하고 [저장]을 누르면 프로젝트로 저장됩니다.');
   }
   function setWeeksOn(state, n) {
     state.agreement.weeks = Array.from({ length: n }, () => ({ regular: 40, fixedOT: 12, written: '' }));
@@ -529,7 +541,151 @@
     r.weeks.forEach(w => rows.push([w.index, w.start, w.end, h(w.A), h(w.F), h(w.W), h(w.OT), h(w.OTx), h(w.otPay), h(w.H1), h(w.H2), h(w.holPay), h(w.N), h(w.nightPay), h(w.L), h(w.comp)]));
     const t = r.total;
     rows.push(['합계', '', '', '', '', h(t.W), h(t.OT), h(t.OTx), h(t.otPay), h(t.H1), h(t.H2), h(t.holPay), h(t.N), h(t.nightPay), h(t.L), h(t.comp)]);
-    download('정산결과_' + store.current + '_' + (S().agreement.start || todayStr()) + '.csv', '﻿' + rows.map(x => x.join(',')).join('\r\n'), 'text/csv');
+    download('정산결과_' + safeName((P().input || P().project || store.current).trim()) + '_' + (S().agreement.start || todayStr()) + '.csv', '﻿' + rows.map(x => x.join(',')).join('\r\n'), 'text/csv');
+  }
+
+  /* ===================== 프로젝트 (이름별 저장·이력) ===================== */
+  const safeName = n => String(n || '').replace(/[\\/:*?"<>|]+/g, '_').trim() || '프로젝트';
+  const fmtStamp = iso => { if (!iso) return ''; const d = new Date(iso); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0') + ' ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); };
+  function hasWork(st) { return Object.keys(st.days || {}).length > 0 || !st.agreement.isDefault; }
+  function isDirty() {
+    const p = P();
+    const rec = p.project ? PJ.get(store.current, p.project) : null;
+    if (!rec) return hasWork(p.work);
+    return !PJ.same(rec.state, p.work) || (p.input || '').trim() !== p.project;
+  }
+  function renderProjectBar() {
+    const p = P();
+    const inp = $('projName');
+    if (document.activeElement !== inp) inp.value = p.input || p.project || '';
+    const names = PJ.list(store.current).map(r => r.name);
+    $('projNames').innerHTML = names.map(n => '<option value="' + esc(n) + '">').join('');
+    const dirty = isDirty();
+    const badge = $('projState');
+    badge.className = 'proj-state ' + (dirty ? 'dirty' : p.project ? 'saved' : '');
+    badge.textContent = dirty ? '저장 안 됨' : p.project ? '저장됨' : '';
+    const rec = p.project && PJ.get(store.current, p.project);
+    badge.title = rec ? '마지막 저장: ' + fmtStamp(rec.savedAt) : '';
+    $('btnProjects').textContent = '프로젝트 목록' + (names.length ? ' (' + names.length + ')' : '');
+  }
+  async function saveProject() {
+    const p = P();
+    const name = ($('projName').value || '').trim();
+    if (!name) { toast('프로젝트 이름을 입력하세요.', 'error'); $('projName').focus(); return; }
+    const existing = PJ.get(store.current, name);
+    if (existing && name !== p.project && !confirm('"' + name + '" 프로젝트가 이미 있습니다. 지금 내용으로 덮어쓸까요?\n(덮어쓰기 전 내용은 이력에 남습니다)')) return;
+    try {
+      const { changed } = await PJ.save(store.current, name, p.work, window.FC.version.APP_VERSION);
+      p.project = name; p.input = name;
+      if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
+      render();
+      toast(changed ? '"' + name + '" 프로젝트를 저장했습니다.' : '바뀐 내용이 없어 저장 이력을 늘리지 않았습니다.');
+    } catch (e) {
+      toast('저장하지 못했습니다: ' + e.message + ' (저장 공간이 부족하면 오래된 프로젝트를 지우거나 백업 후 정리하세요)', 'error');
+    }
+  }
+  function openProjectState(name, state, label) {
+    const p = P();
+    p.work = Object.assign(newState(), JSON.parse(JSON.stringify(state)));
+    p.project = name; p.input = name;
+    render();
+    toast(label);
+  }
+  function confirmDiscard() { return !isDirty() || confirm('지금 작업 중인 내용에 저장하지 않은 변경이 있습니다.\n저장하지 않고 바꿀까요?'); }
+
+  let projOpenHistory = null;
+  function renderProjectList() {
+    const q = ($('projSearch').value || '').trim().toLowerCase();
+    const recs = PJ.list(store.current).filter(r => !q || r.name.toLowerCase().indexOf(q) >= 0);
+    $('projProfile').textContent = store.current;
+    const cur = P().project;
+    const metaText = m => (m && m.start ? m.start + ' ~ ' + m.end + ' · ' + m.weeks + '주 · ' : '') + '최종 보상 ' + f(m ? m.comp : 0);
+    $('projList').innerHTML = recs.length ? recs.map(r => {
+      const hist = projOpenHistory === r.name;
+      return '<div class="proj-item' + (r.name === cur ? ' current' : '') + '" data-name="' + esc(r.name) + '">' +
+        '<div class="proj-main"><div class="proj-name">' + esc(r.name) + (r.name === cur ? ' <span class="proj-cur">열려 있음</span>' : '') + '</div>' +
+        '<div class="proj-meta">' + esc(metaText(r.meta)) + '</div>' +
+        '<div class="proj-meta">마지막 저장 ' + esc(fmtStamp(r.savedAt)) + ' · 이력 ' + (r.history || []).length + '개</div></div>' +
+        '<div class="proj-actions">' +
+        '<button type="button" class="btn small primary" data-act="open">열기</button>' +
+        '<button type="button" class="btn small" data-act="hist"' + ((r.history || []).length ? '' : ' disabled') + '>' + (hist ? '이력 닫기' : '이력') + '</button>' +
+        '<button type="button" class="btn small" data-act="file">파일로 받기</button>' +
+        '<button type="button" class="btn small ghost danger" data-act="del">삭제</button></div>' +
+        (hist ? '<ul class="proj-hist">' + r.history.map((h, i) =>
+          '<li><span>' + esc(fmtStamp(h.savedAt)) + '</span><span class="proj-meta">' + esc(metaText(h.meta)) + '</span>' +
+          '<button type="button" class="btn small" data-act="hopen" data-i="' + i + '">이 버전 열기</button>' +
+          '<button type="button" class="btn small" data-act="hfile" data-i="' + i + '">파일로 받기</button></li>').join('') + '</ul>' : '') +
+        '</div>';
+    }).join('') : '<div class="empty-state">' + (q ? '검색 결과가 없습니다.' : '저장된 프로젝트가 없습니다. 위쪽 프로젝트 이름 칸에 이름을 넣고 [저장]을 누르세요.') + '</div>';
+  }
+  function projectFile(rec, state, savedAt) {
+    const data = { app: 'flexcomp', version: 2, appVersion: rec.appVersion || window.FC.version.APP_VERSION, profile: store.current, project: rec.name, savedAt: savedAt || rec.savedAt, state };
+    download('탄력근로정산_' + safeName(rec.name) + '_' + (state.agreement && state.agreement.start || todayStr()) + '.json', JSON.stringify(data, null, 2), 'application/json');
+  }
+  async function restoreBackup(data) {
+    const recs = Array.isArray(data.projects) ? data.projects : [];
+    if (!recs.length) { toast('백업 파일에 프로젝트가 없습니다.', 'error'); return; }
+    if (!confirm('백업 파일의 프로젝트 ' + recs.length + '개를 "' + store.current + '" 프로필에 넣을까요?\n같은 이름이 있으면 지우지 않고 "(백업)"을 붙여 따로 저장합니다.')) return;
+    try {
+      const { added, skipped } = await PJ.importRecords(store.current, recs);
+      render(); if ($('projDlg').open) renderProjectList();
+      toast('백업에서 ' + added + '개를 넣었습니다' + (skipped ? ' (이미 같은 ' + skipped + '개는 건너뜀)' : '') + '.');
+    } catch (e) { toast('백업을 넣지 못했습니다: ' + e.message, 'error'); }
+  }
+  function bindProjects() {
+    $('projName').addEventListener('input', e => { P().input = e.target.value; renderProjectBar(); persist(); });
+    $('projName').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); saveProject(); } });
+    $('btnProjSave').onclick = saveProject;
+    $('btnProjects').onclick = () => { projOpenHistory = null; $('projSearch').value = ''; renderProjectList(); $('projDlg').showModal(); };
+    $('projSearch').addEventListener('input', renderProjectList);
+    $('btnProjNew').onclick = () => {
+      if (!confirmDiscard()) return;
+      const p = P(), ns = newState();
+      ns.customHolidays = JSON.parse(JSON.stringify(p.work.customHolidays || []));
+      ns.removedHolidays = (p.work.removedHolidays || []).slice();
+      p.work = ns; p.project = null; p.input = '';
+      $('projDlg').close(); render(); $('projName').focus();
+      toast('새 프로젝트를 시작합니다. 회사 휴일 설정은 그대로 가져왔습니다.');
+    };
+    $('btnProjImport').onclick = () => { $('projDlg').close(); $('fileLoad').click(); };
+    $('btnProjBackup').onclick = () => {
+      const recs = PJ.list(store.current);
+      if (!recs.length) { toast('백업할 프로젝트가 없습니다.', 'error'); return; }
+      const data = { app: 'flexcomp', kind: 'backup', version: 2, appVersion: window.FC.version.APP_VERSION, profile: store.current, savedAt: new Date().toISOString(), projects: recs };
+      download('탄력근로정산_전체백업_' + safeName(store.current) + '_' + todayStr() + '.json', JSON.stringify(data), 'application/json');
+      toast('프로젝트 ' + recs.length + '개를 백업 파일로 받았습니다.');
+    };
+    $('projList').addEventListener('click', async e => {
+      const b = e.target.closest('button[data-act]');
+      if (!b) return;
+      const name = b.closest('.proj-item').dataset.name;
+      const rec = PJ.get(store.current, name);
+      if (!rec) return;
+      const act = b.dataset.act;
+      if (act === 'open') {
+        if (!confirmDiscard()) return;
+        $('projDlg').close();
+        openProjectState(name, rec.state, '"' + name + '" 프로젝트를 열었습니다.');
+      } else if (act === 'hist') {
+        projOpenHistory = projOpenHistory === name ? null : name; renderProjectList();
+      } else if (act === 'file') {
+        projectFile(rec, rec.state);
+      } else if (act === 'del') {
+        if (!confirm('"' + name + '" 프로젝트와 이력 ' + (rec.history || []).length + '개를 삭제할까요? 되돌릴 수 없습니다.')) return;
+        await PJ.remove(store.current, name);
+        if (P().project === name) P().project = null;
+        renderProjectList(); render();
+        toast('"' + name + '" 프로젝트를 삭제했습니다.');
+      } else if (act === 'hopen' || act === 'hfile') {
+        const h = rec.history[Number(b.dataset.i)];
+        if (!h) return;
+        if (act === 'hfile') { projectFile(rec, h.state, h.savedAt); return; }
+        if (!confirmDiscard()) return;
+        $('projDlg').close();
+        openProjectState(name, h.state, fmtStamp(h.savedAt) + '에 저장한 버전을 열었습니다. [저장]을 누르면 이 내용이 최신 버전이 됩니다.');
+      }
+    });
+    window.addEventListener('beforeunload', () => persist());
   }
 
   /* ===================== 산정 기준 (기획서) ===================== */
@@ -584,7 +740,7 @@
     $('fileImport').onchange = e => { const fs = [...e.target.files]; e.target.value = ''; if (fs.length) importFiles(fs); };
     $('btnSave').onclick = () => { closeMenu(); saveFile(); };
     $('btnLoad').onclick = () => { closeMenu(); $('fileLoad').click(); };
-    $('fileLoad').onchange = async e => { const file = e.target.files[0]; e.target.value = ''; if (file) loadFile(await file.text()); };
+    $('fileLoad').onchange = async e => { const file = e.target.files[0]; e.target.value = ''; if (file) loadFile(await file.text(), file.name); };
     $('btnCsv').onclick = () => { closeMenu(); exportCsv(); };
     $('btnPrint').onclick = () => { closeMenu(); window.print(); };
     $('btnNewProfile').onclick = () => {
@@ -594,21 +750,27 @@
       if (store.profiles[n]) { toast('이미 있는 이름입니다.', 'error'); return; }
       const ns = newState();
       ns.agreement = JSON.parse(JSON.stringify(S().agreement));
-      store.profiles[n] = ns; store.current = n; render();
+      store.profiles[n] = newProfile(ns); store.current = n; render();
     };
     $('btnRenameProfile').onclick = () => {
       closeMenu();
       const n = (prompt('프로필 이름', store.current) || '').trim();
       if (!n || n === store.current) return;
       if (store.profiles[n]) { toast('이미 있는 이름입니다.', 'error'); return; }
-      store.profiles[n] = S(); delete store.profiles[store.current]; store.current = n; render();
+      const old = store.current;
+      store.profiles[n] = P(); delete store.profiles[old]; store.current = n;
+      PJ.renameProfile(old, n).then(render).catch(e => toast('프로젝트 이동 실패: ' + e.message, 'error'));
+      render();
     };
     $('btnDeleteProfile').onclick = () => {
       closeMenu();
-      if (!confirm('"' + store.current + '" 프로필과 모든 기록을 이 브라우저에서 삭제할까요?')) return;
-      delete store.profiles[store.current];
+      const cnt = PJ.list(store.current).length;
+      if (!confirm('"' + store.current + '" 프로필과 작업 내용' + (cnt ? ', 저장된 프로젝트 ' + cnt + '개' : '') + '를 이 브라우저에서 삭제할까요?')) return;
+      const old = store.current;
+      delete store.profiles[old];
+      PJ.deleteProfile(old).catch(e => toast('프로젝트 삭제 실패: ' + e.message, 'error'));
       store.current = Object.keys(store.profiles)[0] || '기본';
-      if (!store.profiles[store.current]) store.profiles[store.current] = newState();
+      if (!store.profiles[store.current]) store.profiles[store.current] = newProfile();
       render();
     };
     $('btnClearDays').onclick = () => {
@@ -660,6 +822,7 @@
         v.items.map(t => '<li>' + esc(t) + '</li>').join('') + '</ul></section>').join('');
       $('verDlg').showModal();
     };
+    bindProjects();
     $('btnPlan').onclick = openPlan;
     $('btnPlanClose').onclick = () => $('planDlg').close();
     $('planToc').addEventListener('click', e => { const a = e.target.closest('a[data-id]'); if (!a) return; e.preventDefault(); jumpPlan(a.dataset.id); });
@@ -700,7 +863,7 @@
       const fs = [...(e.dataTransfer?.files || [])];
       if (!fs.length) return;
       const json = fs.find(x => /\.json$/i.test(x.name));
-      if (json) json.text().then(loadFile); else importFiles(fs);
+      if (json) json.text().then(t => loadFile(t, json.name)); else importFiles(fs);
     });
     document.addEventListener('click', e => { const m = document.querySelector('.menu[open]'); if (m && !m.contains(e.target)) m.open = false; });
   }
@@ -711,4 +874,6 @@
   load();
   bind();
   render();
+  PJ.init().then(() => { render(); if (PJ.storageKind() !== 'indexedDB') toast('이 브라우저는 대용량 저장소를 쓸 수 없어 기본 저장소에 저장합니다. 프로젝트가 많으면 전체 백업을 받아 두세요.'); })
+    .catch(e => toast('프로젝트 저장소를 열지 못했습니다: ' + e.message, 'error'));
 })();
