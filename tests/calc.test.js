@@ -264,3 +264,26 @@ test('탄력 조정일 자동 반영: 정상 합계가 합의 정규를 넘으�
   w = C.compute(st2).weeks[0];
   assert.deepEqual(w.days.filter(d => d.eff && d.eff.autoAdjusted).map(d => d.date), ['2026-02-09', '2026-02-10']);
 });
+
+test('프로젝트 저장: 같은 이름으로 다시 저장하면 이전 내용은 이력으로, 최대 20개', () => {
+  const PJ = require('../js/projects.js');
+  const st = n => ({ agreement: { type: '3m', start: '2026-10-12', weeks: [{ regular: 40, fixedOT: 12, written: '' }] }, days: { '2026-10-12': { excel: { normal: 480, ext: n, night: 0 } } }, customHolidays: [], removedHolidays: [] });
+  let r = PJ.saveVersion(null, '최은영', 'A', st(60), '2026-11-26T01:00:00Z', '2.8.0');
+  assert.equal(r.changed, true);
+  assert.equal(r.record.history.length, 0);
+  assert.equal(r.record.meta.start, '2026-10-12');
+  const same = PJ.saveVersion(r.record, '최은영', 'A', st(60), '2026-11-26T02:00:00Z', '2.8.0');
+  assert.equal(same.changed, false, '내용이 같으면 이력을 늘리지 않음');
+  let rec = r.record;
+  for (let i = 1; i <= 25; i++) rec = PJ.saveVersion(rec, '최은영', 'A', st(60 + i * 10), '2026-11-26T03:' + String(i).padStart(2, '0') + ':00Z', '2.8.0').record;
+  assert.equal(rec.history.length, 20);
+  assert.equal(rec.history[0].state.days['2026-10-12'].excel.ext, 300, '바로 전 저장본이 이력 맨 앞');
+});
+
+test('프로젝트 비교: 내용 없는 날짜·불러오기 안내문은 무시', () => {
+  const PJ = require('../js/projects.js');
+  const a = { agreement: { start: '2026-10-12', weeks: [] }, days: { '2026-10-12': { excel: { normal: 480 } } }, lastImport: 'x' };
+  const b = { agreement: { start: '2026-10-12', weeks: [] }, days: { '2026-10-12': { excel: { normal: 480 } }, '2026-10-13': { in: null, out: null, status: '', excel: null, manual: null } }, lastImport: 'y' };
+  assert.equal(PJ.same(a, b), true);
+  assert.equal(PJ.uniqueName('A', n => n === 'A' || n === 'A (2)'), 'A (3)');
+});
